@@ -18,118 +18,115 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import statsmodels.api as sm
 
-
-def size(array: np.ndarray) -> int:
+@jax.jit
+def size(array):
     return array.shape[0]
 
-
-def channel_count(array: np.ndarray) -> int:
+@jax.jit
+def channel_count(array):
     return array.shape[1]
 
-
-def is_mono(array: np.ndarray) -> bool:
+@jax.jit
+def is_mono(array):
     return array.shape[1] == 1
 
-
-def is_stereo(array: np.ndarray) -> bool:
+@jax.jit
+def is_stereo(array):
     return array.shape[1] == 2
 
-
-def is_1d(array: np.ndarray) -> bool:
+@jax.jit
+def is_1d(array):
     return len(array.shape) == 1
 
+@jax.jit
+def mono_to_stereo(array):
+    return jnp.repeat(array, repeats=2, axis=1)
 
-def mono_to_stereo(array: np.ndarray) -> np.ndarray:
-    return np.repeat(array, repeats=2, axis=1)
-
-
-def count_max_peaks(array: np.ndarray) -> (float, int):
-    max_value = np.abs(array).max()
-    max_count = np.count_nonzero(
-        np.logical_or(np.isclose(array, max_value), np.isclose(array, -max_value))
+@jax.jit
+def count_max_peaks(array):
+    max_value = jnp.abs(array).max()
+    max_count = jnp.count_nonzero(
+        jnp.logical_or(jnp.isclose(array, max_value), jnp.isclose(array, -max_value))
     )
     return max_value, max_count
 
-
-def lr_to_ms(array: np.ndarray) -> (np.ndarray, np.ndarray):
-    array = np.copy(array)
-    array[:, 0] += array[:, 1]
-    array[:, 0] *= 0.5
-    mid = np.copy(array[:, 0])
-    array[:, 0] -= array[:, 1]
-    side = np.copy(array[:, 0])
+@jax.jit
+def lr_to_ms(array):
+    array = jnp.copy(array)
+    array = jnp.add(array[:, 0], array[:, 1])
+    array = jnp.multiply(array, 0.5)
+    mid = jnp.copy(array)
+    array = jnp.subtract(array[:, jnp.newaxis], array)
+    side = jnp.copy(array[:, 0])
     return mid, side
 
+@jax.jit
+def ms_to_lr(mid_array, side_array):
+    return jnp.vstack((mid_array + side_array, mid_array - side_array)).T
 
-def ms_to_lr(mid_array: np.ndarray, side_array: np.ndarray) -> np.ndarray:
-    return np.vstack((mid_array + side_array, mid_array - side_array)).T
-
-
-def unfold(array: np.ndarray, piece_size: int, divisions: int) -> np.ndarray:
+def unfold(array, piece_size, divisions):
     # (len(array),) -> (divisions, piece_size)
     return array[: piece_size * divisions].reshape(-1, piece_size)
 
+def rms(array):
+    return jnp.sqrt(array @ array / array.shape[0])
 
-def rms(array: np.ndarray) -> float:
-    return np.sqrt(array @ array / array.shape[0])
-
-
-def batch_rms(array: np.ndarray) -> np.ndarray:
+@jax.jit
+def batch_rms(array):
     piece_size = array.shape[1]
     # (divisions, piece_size) -> (divisions, 1, piece_size)
     multiplicand = array[:, None, :]
     # (divisions, piece_size) -> (divisions, piece_size, 1)
     multiplier = array[..., None]
-    return np.sqrt(np.squeeze(multiplicand @ multiplier, axis=(1, 2)) / piece_size)
+    return jnp.sqrt(jnp.squeeze(multiplicand @ multiplier, axis=(1, 2)) / piece_size)
 
-
-def amplify(array: np.ndarray, gain: float) -> np.ndarray:
+@jax.jit
+def amplify(array, gain):
     return array * gain
 
-
-def normalize(
-    array: np.ndarray, threshold: float, epsilon: float, normalize_clipped: bool
-) -> (np.ndarray, float):
+def normalize(array, threshold, epsilon, normalize_clipped):
     coefficient = 1.0
-    max_value = np.abs(array).max()
+    max_value = jnp.abs(array).max()
     if max_value < threshold or normalize_clipped:
-        coefficient = max(epsilon, max_value / threshold)
+        coefficient = np.amax(([epsilon, max_value / threshold]))
     return array / coefficient, coefficient
 
-
-def smooth_lowess(array: np.ndarray, frac: float, it: int, delta: float) -> np.ndarray:
+def smooth_lowess(array, frac, it, delta):
     return sm.nonparametric.lowess(
-        array, np.linspace(0, 1, len(array)), frac=frac, it=it, delta=delta
+        array, jnp.linspace(0, 1, len(array)), frac=frac, it=it, delta=delta
     )[:, 1]
 
+@jax.jit
+def clip(array, to = 1):
+    return jnp.clip(array, -to, to)
 
-def clip(array: np.ndarray, to: float = 1) -> np.ndarray:
-    return np.clip(array, -to, to)
-
-
-def flip(array: np.ndarray) -> np.ndarray:
+@jax.jit
+def flip(array):
     return 1.0 - array
 
-
-def rectify(array: np.ndarray, threshold: float) -> np.ndarray:
-    rectified = np.abs(array).max(1)
-    rectified[rectified <= threshold] = threshold
+@jax.jit
+def rectify(array, threshold):
+    rectified = jnp.abs(array).max(1)
+    indices = jnp.argwhere(rectified <= threshold)
+    rectified.at(indices).set(threshold)
     rectified /= threshold
     return rectified
 
+@jax.jit
+def max_mix(*args):
+    return jnp.maximum.reduce(args)
 
-def max_mix(*args) -> np.ndarray:
-    return np.maximum.reduce(args)
-
-
-def strided_app_2d(matrix: np.ndarray, batch_size: int, step: int) -> np.ndarray:
+@jax.jit
+def strided_app_2d(matrix, batch_size, step):
     matrix_length = matrix.shape[0]
     matrix_width = matrix.shape[1]
     if batch_size > matrix_length:
-        return np.expand_dims(matrix, axis=0)
+        return jnp.expand_dims(matrix, axis=0)
     batch_count = ((matrix_length - batch_size) // step) + 1
     stride_length, stride_width = matrix.strides
     return np.lib.stride_tricks.as_strided(
@@ -138,15 +135,19 @@ def strided_app_2d(matrix: np.ndarray, batch_size: int, step: int) -> np.ndarray
         strides=(step * stride_length, stride_length, stride_width),
     )
 
+@jax.jit
+def batch_rms_2d(array):
+    piece_size = array.shape[1] * array.shape[2]
+    multiplicand = array.reshape(array.shape[0], 1, piece_size)
+    multiplier = array.reshape(array.shape[0], piece_size, 1)
+    return jnp.sqrt(jnp.squeeze(multiplicand @ multiplier, axis=(1, 2)) / piece_size)
 
-def batch_rms_2d(array: np.ndarray) -> np.ndarray:
-    return batch_rms(array.reshape(array.shape[0], array.shape[1] * array.shape[2]))
-
-
-def fade(array: np.ndarray, fade_size: int) -> np.ndarray:
-    array = np.copy(array)
-    fade_in = np.linspace(0, 1, fade_size)
+@jax.jit
+def fade(array, fade_size):
+    array = jnp.copy(array)
+    fade_in = jnp.linspace(0, 1, fade_size)
     fade_out = fade_in[::-1]
-    array[:fade_size].T[:] *= fade_in
-    array[size(array) - fade_size :].T[:] *= fade_out
-    return array
+    array = jnp.transpose(array)
+    array = array.at[:fade_size].mul(fade_in)
+    array = array.at[len(array) - fade_size:].mul(fade_out)
+    return jnp.transpose(array)

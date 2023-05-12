@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import numpy as np
+import jax.numpy as jnp
 
 from ..log import debug
 from .. import Config
@@ -33,7 +34,7 @@ def normalize_reference(reference: np.ndarray, config: Config) -> (np.ndarray, f
         reference, config.threshold, config.min_value, normalize_clipped=False
     )
 
-    if np.isclose(final_amplitude_coefficient, 1.0):
+    if jnp.isclose(final_amplitude_coefficient, 1.0):
         debug("The REFERENCE was not changed. There is no final amplitude coefficient")
     else:
         debug(
@@ -46,7 +47,7 @@ def normalize_reference(reference: np.ndarray, config: Config) -> (np.ndarray, f
 
 def __calculate_piece_sizes(
     array: np.ndarray, max_piece_size: int, name: str, sample_rate: int
-) -> (int, int, int):
+) -> (int, float, int):
     array_size = size(array)
     divisions = int(array_size / max_piece_size) + 1
     debug(f"The {name} will be didived into {divisions} pieces")
@@ -62,7 +63,7 @@ def __calculate_piece_sizes(
 def get_lpis_and_match_rms(
     rmses: np.ndarray, average_rms: float
 ) -> (np.ndarray, float):
-    loudest_piece_idxs = np.where(rmses >= average_rms)
+    loudest_piece_idxs = jnp.where(rmses >= average_rms)
 
     loudest_rmses = rmses[loudest_piece_idxs]
     match_rms = rms(loudest_rmses)

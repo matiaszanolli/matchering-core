@@ -56,4 +56,5 @@ def make_odd(value: int) -> int:
 
 
 def time_str(length, sample_rate) -> str:
-    return str(timedelta(seconds=length // sample_rate))
+    seconds = float(length / sample_rate)
+    return str(timedelta(seconds=seconds))
