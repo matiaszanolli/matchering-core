@@ -1,4 +1,4 @@
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://qiwi.com/n/SERGREE)
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://pip.me/sergree)
 
 ![Matchering 2.0](https://raw.githubusercontent.com/sergree/matchering/master/images/logo.png)
 
@@ -18,7 +18,7 @@ It follows a *simple idea* - you take TWO audio files and feed them into **Match
 
 Our algorithm matches both of these tracks and provides you the mastered **TARGET** track with the same [RMS], [FR], [peak amplitude] and [stereo width] as the **REFERENCE** track has.
 
-You can try out **Matchering** yourself without having to install it, thanks to the hosting provided by **[Moises.ai](https://moises.ai/)**.
+You can try out **Matchering** yourself without having to install it, thanks to the hosting provided by **[Songmastr](https://www.songmastr.com/)** and **[Moises](https://moises.ai/)**.
 
 Watch **[the video][Video]**:
 
@@ -38,6 +38,8 @@ So **Matchering 2.0** will make your song sound the way you want! It opens up a 
 > - Processing speed and accuracy have been increased
 > - Now it is [the library][PyPI] that can be connected to **everything** in **the Python world**
 
+If you are looking for a **Matchering paper**, you can read **[this Habr article](https://habr.com/ru/post/709120/)**.
+
 # Installation and Usage
 
 If you are a music producer or an audio engineer, choose the **[Docker Image]**. 
@@ -50,6 +52,7 @@ If you are a developer, choose the **[Python Library](#python-library---for-deve
 
 ## Choose yours
 
+### [NEW! Try WITHOUT Installation](https://www.youtube.com/watch?v=Aw0nH6QqAck)
 ### [Windows](https://github.com/sergree/matchering/blob/master/DOCKER_WINDOWS.md)
 ### [macOS](https://github.com/sergree/matchering/blob/master/DOCKER_MACOS.md)
 ### [Linux](https://github.com/sergree/matchering/blob/master/DOCKER_LINUX.md)
@@ -123,11 +126,19 @@ You can find more examples in the **[examples directory]**.
 
 ### Or you can use premade **Matchering 2.0 Command Line Application**: **[matchering-cli]**.
 
+## 💓 WhatBPM
+
+Looking for the perfect BPM or key for a new EDM track?
+
+**[Check out WhatBPM!](https://sergree.github.io/whatbpm)**
+
+A completely free open-source web service from the author of Matchering.
+
 ## A Coffee
 
 If our package saved your time or money, you may:
 
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://qiwi.com/n/SERGREE)
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://pip.me/sergree)
 
 **Thank you!**
 

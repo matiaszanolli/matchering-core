@@ -12,7 +12,17 @@
 
 - **KVR Audio: [#1](https://www.kvraudio.com/news/sergree-releases-matchering-2-0---open-source-audio-matching-and-mastering-47747) [#2](https://www.kvraudio.com/news/sergree-updates-matchering-to-2-0-3---open-source-audio-matching-and-mastering-50127)**
 
-- **SAMESOUND: [#1](https://samesound.ru/n/softnews/119022-matchering-2-0-online-mastering-free-service)**
+- **SAMESOUND: [#1](https://samesound.ru/n/softnews/119022-matchering-2-0-online-mastering-free-service) [#2](https://samesound.ru/soft/167269-onlajn-mastering-na-osnove-rossijskogo-algoritma-matchering-2-0-nazvan-ugrozoj-muzykalnoj-industrii)**
+
+- **TorrentFreak: [#1](https://torrentfreak.com/riaa-flags-artificial-intelligence-music-mixer-as-emerging-copyright-threat-221017/) [#2](https://torrentfreak.com/ai-powered-music-mixer-responds-to-riaas-copyright-infringement-claims-221026/)**
+
+- **Slashdot: [#1](https://yro.slashdot.org/story/22/10/20/2131224/riaa-flags-artificial-intelligence-music-mixer-as-emerging-copyright-threat)**
+
+- **Xataka: [#1](https://www.xataka.com/robotica-e-ia/industria-musical-antes-tenia-miedo-torrents-ahora-tiene-miedo-musica-generada-ia)**
+
+- **Habr: [#1](https://habr.com/ru/post/709120/)**
+
+- **Korben: [#1](https://korben.info/mastering-audio-gratuit.html)**
 
 - **Simple Green Tech: [#1](https://www.youtube.com/watch?v=NFbjLyaWjqg)**
 

@@ -1,5 +1,7 @@
 # macOS - Matchering 2.0 Docker Image
 
+### [NEW! Try Matchering 2.0 WITHOUT Installation!](https://www.youtube.com/watch?v=Aw0nH6QqAck)
+
 **[Docker Desktop for Mac]** requires **Apple macOS Mojave 10.14 or newer**. 
 
 1. Download and install **[Docker Desktop for Mac with Intel Chip]** or **[Docker Desktop for Mac with Apple M1 Chip]**. Use the **Docker Desktop** shortcut if it didn't start automatically
@@ -23,6 +25,14 @@
 8. Enjoy your **Matchering 2.0** at 🎉 **http://127.0.0.1:8360** 🎉 It will also run automatically at startup
 
 ### IMPORTANT: Read the [Keep the Privacy] page if you would like to host our web application publicly!
+
+## 💓 WhatBPM
+
+Looking for the perfect BPM or key for a new EDM track?
+
+**[Check out WhatBPM!](https://sergree.github.io/whatbpm)**
+
+A completely free open-source web service from the author of Matchering.
 
 [Docker Desktop for Mac]: https://hub.docker.com/editions/community/docker-ce-desktop-mac
 [Docker Desktop for Mac with Intel Chip]: https://desktop.docker.com/mac/stable/amd64/Docker.dmg

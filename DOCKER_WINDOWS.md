@@ -1,5 +1,7 @@
 # Windows - Matchering 2.0 Docker Image
 
+### [NEW! Try Matchering 2.0 WITHOUT Installation!](https://www.youtube.com/watch?v=Aw0nH6QqAck)
+
 **[Docker Desktop for Windows]** requires **Microsoft Windows 10 64-bit: Pro, Enterprise, Education, or Home**. 
 
 1. Download and install **[Docker Desktop for Windows 10]**
@@ -50,6 +52,14 @@
     ![Win Step 11](https://raw.githubusercontent.com/sergree/matchering/master/images/win_step_11.png)
 
 ### IMPORTANT: Read the [Keep the Privacy] page if you would like to host our web application publicly!
+
+## 💓 WhatBPM
+
+Looking for the perfect BPM or key for a new EDM track?
+
+**[Check out WhatBPM!](https://sergree.github.io/whatbpm)**
+
+A completely free open-source web service from the author of Matchering.
 
 [Docker Desktop for Windows]: https://hub.docker.com/editions/community/docker-ce-desktop-windows
 [Docker Desktop for Windows 10]: https://desktop.docker.com/win/stable/amd64/Docker%20Desktop%20Installer.exe

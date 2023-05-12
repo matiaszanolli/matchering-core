@@ -1,5 +1,7 @@
 # Linux - Matchering 2.0 Docker Image
 
+### [NEW! Try Matchering 2.0 WITHOUT Installation!](https://www.youtube.com/watch?v=Aw0nH6QqAck)
+
 Make sure that your machine has at least **4 GB of RAM**.
 
 1. Install **Docker Engine - Community** for:
@@ -16,5 +18,13 @@ Make sure that your machine has at least **4 GB of RAM**.
 4. Enjoy your **Matchering 2.0** at 🎉 **http://127.0.0.1:8360** 🎉 It will also run automatically at startup
 
 ### IMPORTANT: Read the [Keep the Privacy] page if you would like to host our web application publicly!
+
+## 💓 WhatBPM
+
+Looking for the perfect BPM or key for a new EDM track?
+
+**[Check out WhatBPM!](https://sergree.github.io/whatbpm)**
+
+A completely free open-source web service from the author of Matchering.
 
 [Keep the Privacy]: https://github.com/sergree/matchering/wiki/Keep-the-Privacy

@@ -1,4 +1,4 @@
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)][QIWI]
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)][PIPME]
 
 # Supporters
 
@@ -42,6 +42,7 @@ You keep our ship afloat.
 ## Social Media
 
 - **[Cristian Vogel](https://twitter.com/neverenginelabs)**
+- **[SLAVA BASYUL](https://www.youtube.com/channel/UCsbS60o4lEjXcicQiMi912A)**
 - **[cubase.ninja](https://cubase.ninja/)**
 - **[Beat Hackers](https://soundcloud.com/beat-hackers)**
 - **[Somnia](https://soundcloud.com/somnia)**
@@ -71,4 +72,4 @@ Special thanks to the members and the staff of the **[AudioSEX - Professional Au
 [PyCharm]: https://www.jetbrains.com/pycharm/?from=Matchering
 [WebStorm]: https://www.jetbrains.com/webstorm/?from=Matchering
 [BMC]: https://www.buymeacoffee.com/sergree
-[QIWI]: https://qiwi.com/n/SERGREE
+[PIPME]: https://pip.me/sergree
