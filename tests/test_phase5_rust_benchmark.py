@@ -33,6 +33,21 @@ except ImportError:
     RUST_AVAILABLE = False
     auralis_dsp = None
 
+# #4968: this used to auto-install a hardcoded wheel path
+# (auralis_dsp-0.1.0-cp313-cp313-manylinux_2_35_x86_64.whl) whose interpreter
+# tag is dead under requires-python >= 3.14 and whose platform tag never
+# matched a local build's linux_x86_64 tag either way -- the .exists() check
+# always failed, silently falling back to a multi-minute release compile on
+# every run. Mirrors the skip-if-missing pattern
+# tests/vendor/test_rust_panic_handler.py already uses correctly: skip rather
+# than auto-install/auto-build, since a benchmark comparing Rust against
+# librosa is meaningless without the real extension already built via
+# `cd vendor/auralis-dsp && maturin develop`.
+pytestmark = pytest.mark.skipif(
+    not RUST_AVAILABLE,
+    reason="auralis_dsp Rust extension not installed (run: cd vendor/auralis-dsp && maturin develop)"
+)
+
 
 class Phase5Benchmark:
     """Benchmark Rust implementations against librosa."""
@@ -306,26 +321,6 @@ class Phase5Benchmark:
         print("\n" + "╔" + "═" * 58 + "╗")
         print("║" + " " * 12 + "PHASE 5: RUST vs LIBROSA BENCHMARK" + " " * 12 + "║")
         print("╚" + "═" * 58 + "╝")
-
-        if not RUST_AVAILABLE:
-            print("\n⚠️  Rust DSP library not available - installing wheel...")
-            import subprocess
-
-            wheel_path = (
-                Path(__file__).parent.parent
-                / "vendor/auralis-dsp/target/wheels/auralis_dsp-0.1.0-cp313-cp313-manylinux_2_35_x86_64.whl"
-            )
-            if wheel_path.exists():
-                subprocess.run(["pip", "install", str(wheel_path)], check=True)
-            else:
-                print("⚠️  Wheel not found - building Rust library...")
-                import subprocess
-
-                subprocess.run(
-                    ["maturin", "build", "--release"],
-                    cwd=Path(__file__).parent.parent / "vendor/auralis-dsp",
-                    check=True,
-                )
 
         # Run benchmarks for different audio durations
         durations = [1, 10, 60]
