@@ -35,6 +35,25 @@ from .soundfile_loader import load_with_soundfile
 # mitigation until (or instead of) bundling.
 MINIMUM_FFMPEG_VERSION = (4, 0, 0)
 
+# Rejects any file_path FFmpeg/libavformat would parse as a protocol
+# specifier rather than a plain filesystem path. A bare `"://" in path`
+# substring check (the guard this replaced) misses `pipe:0`, `concat:a|b`,
+# `data:...` and every other colon-only protocol, which never contain "://"
+# (#4834). Requires at least two characters before the colon so a
+# single-letter Windows drive path ("C:\\Users\\...") is never misclassified
+# as a protocol — every real FFmpeg protocol name is 2+ characters.
+_PROTOCOL_PREFIX_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+.\-]+:')
+
+
+def reject_protocol_path(file_path_str: str) -> None:
+    """Raise ``ModuleError`` if *file_path_str* looks like an FFmpeg protocol
+    specifier (``concat:``, ``pipe:``, ``http://``, ...) instead of a plain
+    filesystem path. Shared by both ffprobe/ffmpeg call sites (#4834)."""
+    if _PROTOCOL_PREFIX_RE.match(file_path_str):
+        raise ModuleError(
+            f"{Code.ERROR_UNSUPPORTED_FORMAT}: URL/protocol inputs are not allowed ({file_path_str})"
+        )
+
 
 def _parse_ffmpeg_version(version_output: str) -> tuple[int, ...] | None:
     """Extract the (major, minor, ...) version tuple from `ffmpeg -version` output.
@@ -282,10 +301,9 @@ def load_with_ffmpeg(
     file_path = Path(file_path)
     if not file_path.exists() or not file_path.is_file():
         raise ModuleError(f"{Code.ERROR_FILE_NOT_FOUND}: {file_path}")
-    # Basic guard against ffmpeg protocol URLs (e.g., http://, pipe:, etc.)
+    # Guard against ffmpeg protocol specifiers (http://, pipe:, concat:, data:, etc.)
     file_path_str = str(file_path)
-    if "://" in file_path_str:
-        raise ModuleError(f"{Code.ERROR_UNSUPPORTED_FORMAT}: URL/protocol inputs are not allowed ({file_path_str})")
+    reject_protocol_path(file_path_str)
 
     # Probe source format: duration, sample rate, and channel count
     probe = _probe_audio(file_path)

@@ -21,7 +21,7 @@ import soundfile as sf
 
 from ..utils.logging import Code, ModuleError, debug, info, warning
 from .formats import FFMPEG_FORMATS, SUPPORTED_FORMATS
-from .loaders import check_ffprobe, load_with_ffmpeg, load_with_soundfile
+from .loaders import check_ffprobe, load_with_ffmpeg, load_with_soundfile, reject_protocol_path
 # check_ffmpeg is unused within this module's own logic (post-#4119, the
 # ffprobe guard uses check_ffprobe exclusively — see #4540) but is re-exported
 # so test_ffprobe_error_masking_4540.py can monkeypatch unified_loader.check_ffmpeg
@@ -218,6 +218,10 @@ def _get_info_with_ffprobe(file_path: Path) -> dict[str, Any]:
     # in ffmpeg_loader._probe_audio, which never reached this second copy.
     if not check_ffprobe():
         raise ModuleError(f"{Code.ERROR_FFMPEG_NOT_FOUND}: FFprobe required")
+
+    # This second ffprobe call site had no protocol guard at all (#4834) —
+    # ffmpeg_loader._probe_audio gained one in #4119, but it never reached here.
+    reject_protocol_path(str(file_path))
 
     try:
         ffprobe_cmd = [
