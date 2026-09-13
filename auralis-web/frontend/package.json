@@ -4,6 +4,9 @@
   "description": "React renderer for the Auralis desktop application; browser execution is an unsupported preview",
   "private": true,
   "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
