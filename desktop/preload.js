@@ -27,23 +27,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximize: () => ipcRenderer.invoke('window-maximize'),
   close: () => ipcRenderer.invoke('window-close'),
 
-  // Backend communication (if needed beyond HTTP)
-  sendToBackend: (data) => ipcRenderer.invoke('backend-message', data),
-
   // Platform info
   platform: process.platform,
   isPackaged: process.env.NODE_ENV === 'production',
 
   // App info
   version: process.env.npm_package_version || '1.0.0',
-
-  // Utility functions
-  // NOTE: no `ipcMain.handle('open-external', ...)` is registered in
-  // main.js yet — this channel is currently dead. If it's ever wired up,
-  // route it through main.js's openExternalSafely() (backed by
-  // url-safety.js's isSafeExternalUrl), not a raw shell.openExternal(url)
-  // call — see #4844.
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   // Event listeners for app state
   onAppReady: (callback) => {
