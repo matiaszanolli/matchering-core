@@ -388,7 +388,8 @@ async def get_album_artwork(
     # Security: Validate artwork path is within allowed directory
     # Define allowed artwork directory (shared with the purge path, #4532)
     artwork_dir, thumb_dir = _artwork_dirs()
-    artwork_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
+    # Off the event loop (#4653's CONSISTENCY sweep): this is inside async def.
+    await asyncio.to_thread(artwork_dir.mkdir, parents=True, exist_ok=True)
 
     # Resolve allowed directory (handles symlinks in base path)
     allowed_dir = artwork_dir.resolve()

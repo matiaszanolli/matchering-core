@@ -41,6 +41,18 @@ from auralis.io.formats import AUDIO_EXTENSIONS as _ALLOWED_AUDIO_EXTENSIONS
 from auralis.core.config.preset_profiles import PresetProfile, create_preset_profiles
 
 
+def _write_upload(temp_dir: Path, input_path: Path, content: bytes) -> None:
+    """Create the upload dir and write *content* with exclusive create.
+
+    Runs in a worker thread via asyncio.to_thread (#4653). "xb" makes the open
+    fail with FileExistsError instead of following a symlink planted at the
+    path between name selection and open (#2170).
+    """
+    temp_dir.mkdir(exist_ok=True)
+    with open(input_path, "xb") as f:
+        f.write(content)
+
+
 def _is_valid_audio_magic(data: bytes) -> bool:
     """Return True if data starts with a known audio format magic signature."""
     if len(data) < 8:
@@ -404,7 +416,6 @@ async def upload_and_process(
 
         # Save uploaded file to temp location
         temp_dir = Path(tempfile.gettempdir()) / UPLOAD_TEMP_DIRNAME
-        temp_dir.mkdir(exist_ok=True)
 
         # Enforce size limit before reading the whole body (#2560)
         content = await file.read(_MAX_UPLOAD_BYTES + 1)
@@ -429,8 +440,12 @@ async def upload_and_process(
         if original_ext not in _ALLOWED_AUDIO_EXTENSIONS:
             original_ext = ".bin"
         input_path = temp_dir / f"{uuid.uuid4()}{original_ext}"
-        with open(input_path, "xb") as f:
-            f.write(content)
+        # #4653: the mkdir and the up-to-500 MB write used to run directly on the
+        # event loop, stalling WebSocket audio delivery and every other request
+        # for the length of the write. Same shape as files.py's _write_temp
+        # (#3494). The "xb" exclusive-create mode is kept — it is the #2170
+        # anti-TOCTOU guard, not incidental.
+        await asyncio.to_thread(_write_upload, temp_dir, input_path, content)
 
         # Debug, not info (#3844): avoid logging absolute filesystem paths.
         logger.debug(f"Uploaded file saved to {input_path}")
