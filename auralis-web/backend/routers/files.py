@@ -367,11 +367,36 @@ async def get_supported_formats() -> dict[str, Any]:
     Returns:
         dict: Supported formats, sample rates, and bit depths
     """
+    # #4768: these used to be hand-typed literals that had drifted — input
+    # omitted .aiff/.aif/.au/.wma/.opus, all of which the upload validator in
+    # this same file accepts. Derive each list from what actually enforces it.
+    from typing import get_args
+
+    from auralis.io.formats import SUPPORTED_FORMATS
+
+    # What ProcessingSettings will accept for a processing job. Not every
+    # (format, bit_depth) pair is valid — its model validator rejects the ones
+    # libsndfile cannot write — so these are the options, not a matrix.
+    #
+    # routes.py treats the processing router as optional and tolerates it
+    # failing to import. When it cannot, no processing job can be submitted,
+    # so the truthful answer is "no output formats", not a crash here.
+    try:
+        from routers.processing_api import ProcessingSettings
+    except Exception:
+        output_formats: list[str] = []
+        bit_depths: list[int] = []
+    else:
+        fields = ProcessingSettings.model_fields
+        output_formats = sorted(f".{fmt}" for fmt in get_args(fields["output_format"].annotation))
+        bit_depths = sorted(get_args(fields["bit_depth"].annotation))
+
     return {
-        "input_formats": [".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"],
-        "output_formats": [".wav", ".flac", ".mp3"],
+        # The decoder's single source of truth (#4109), same set upload uses.
+        "input_formats": sorted(SUPPORTED_FORMATS),
+        "output_formats": output_formats,
         "sample_rates": [44100, 48000, 88200, 96000, 192000],
-        "bit_depths": [16, 24, 32]
+        "bit_depths": bit_depths,
     }
 
 

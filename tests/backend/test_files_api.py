@@ -634,3 +634,43 @@ class TestFilesIntegration:
         # Both endpoints should be available if service is running
         # This tests that the service is consistently configured
         assert formats_response.json() is not None
+
+
+class TestSupportedFormatsSourceOfTruth:
+    """GET /api/audio/formats is derived, not hand-typed (#4768)."""
+
+    def test_input_formats_match_the_decoder_source_of_truth(self, client):
+        from auralis.io.formats import SUPPORTED_FORMATS
+
+        data = client.get("/api/audio/formats").json()
+        assert data["input_formats"] == sorted(SUPPORTED_FORMATS)
+        # The five the literal used to omit.
+        for ext in (".aiff", ".aif", ".au", ".wma", ".opus"):
+            assert ext in data["input_formats"]
+
+    def test_output_options_match_what_processing_settings_accepts(self, client):
+        from typing import get_args
+
+        from routers.processing_api import ProcessingSettings
+
+        data = client.get("/api/audio/formats").json()
+        fields = ProcessingSettings.model_fields
+        assert data["output_formats"] == sorted(
+            f".{f}" for f in get_args(fields["output_format"].annotation)
+        )
+        assert data["bit_depths"] == sorted(get_args(fields["bit_depth"].annotation))
+
+    def test_no_output_options_when_the_processing_router_cannot_import(self, client, monkeypatch):
+        """routes.py tolerates processing_api failing to import; the formats
+        endpoint must then report no output options rather than 500."""
+        import sys
+
+        monkeypatch.setitem(sys.modules, "routers.processing_api", None)
+        resp = client.get("/api/audio/formats")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["output_formats"] == []
+        assert data["bit_depths"] == []
+        assert ".wav" in data["input_formats"]
+
