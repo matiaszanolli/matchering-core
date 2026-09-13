@@ -165,7 +165,7 @@ fn py_hpss(audio: &PyArray1<f64>, sr: usize) -> PyResult<(PyArray1<f64>, PyArray
 
 3. **Build as Python extension**:
 ```bash
-maturin develop  # or python setup.py build_ext --inplace
+maturin develop
 ```
 
 4. **Test Python import**:
