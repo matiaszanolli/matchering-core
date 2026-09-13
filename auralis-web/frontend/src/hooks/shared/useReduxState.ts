@@ -177,8 +177,11 @@ export const useQueue = () => {
     (index: number) => dispatch(queueActions.setCurrentIndex(index)),
     [dispatch]
   );
-  const next = useCallback(() => dispatch(queueActions.nextTrack()), [dispatch]);
-  const previous = useCallback(() => dispatch(queueActions.previousTrack()), [dispatch]);
+  // #4660: `next`/`previous` used to live here, dispatching queueSlice's
+  // nextTrack/previousTrack — reducers that moved currentIndex client-side
+  // with no API call and no track_changed round-trip, so the UI could show a
+  // different track than the engine was streaming. The real skip path is
+  // usePlaybackControl().next()/.previous(); use that.
   const clear = useCallback(() => dispatch(queueActions.clearQueue()), [dispatch]);
   const setQueue = useCallback(
     (tracks: QueueTrack[]) => dispatch(queueActions.setQueue(tracks)),
@@ -202,8 +205,6 @@ export const useQueue = () => {
       remove,
       reorder,
       setCurrentIndex,
-      next,
-      previous,
       clear,
       setQueue,
     }),
@@ -219,8 +220,6 @@ export const useQueue = () => {
       remove,
       reorder,
       setCurrentIndex,
-      next,
-      previous,
       clear,
       setQueue,
     ]

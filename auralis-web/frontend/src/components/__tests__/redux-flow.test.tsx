@@ -127,7 +127,7 @@ describe('End-to-End User Flows', () => {
       expect(state.player.currentTime).toBe(90);
 
       // 6. Play next track
-      store.dispatch(queueActions.nextTrack());
+      store.dispatch(queueActions.setCurrentIndex(1));
       store.dispatch(playerActions.setCurrentTrack(tracks[1]));
       state = store.getState();
       expect(state.player.currentTrack?.id).toBe(2);
@@ -215,36 +215,6 @@ describe('End-to-End User Flows', () => {
       expect(state.queue.currentIndex).toBe(0);
     });
 
-    it('should navigate queue with next/previous', () => {
-      const tracks = [
-        { id: 1, title: 'Track 1', artist: 'Artist 1', duration: 180 },
-        { id: 2, title: 'Track 2', artist: 'Artist 2', duration: 200 },
-        { id: 3, title: 'Track 3', artist: 'Artist 3', duration: 150 },
-      ];
-
-      tracks.forEach((t) => store.dispatch(queueActions.addTrack(t)));
-      store.dispatch(queueActions.setCurrentIndex(0));
-
-      // Next
-      store.dispatch(queueActions.nextTrack());
-      let state = store.getState();
-      expect(state.queue.currentIndex).toBe(1);
-
-      // Next again
-      store.dispatch(queueActions.nextTrack());
-      state = store.getState();
-      expect(state.queue.currentIndex).toBe(2);
-
-      // Can't go next beyond end
-      store.dispatch(queueActions.nextTrack());
-      state = store.getState();
-      expect(state.queue.currentIndex).toBe(2);
-
-      // Previous
-      store.dispatch(queueActions.previousTrack());
-      state = store.getState();
-      expect(state.queue.currentIndex).toBe(1);
-    });
   });
 
   // ============================================================================
@@ -546,7 +516,7 @@ describe('End-to-End User Flows', () => {
       expect(state.player.isPlaying).toBe(true);
 
       // Move to next
-      store.dispatch(queueActions.nextTrack());
+      store.dispatch(queueActions.setCurrentIndex(1));
       store.dispatch(playerActions.setCurrentTrack(tracks[1]));
 
       state = store.getState();

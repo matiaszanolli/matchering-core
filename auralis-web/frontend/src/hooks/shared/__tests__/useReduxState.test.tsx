@@ -232,32 +232,6 @@ describe('Redux State Hooks', () => {
       expect(result.current.queueLength).toBe(1);
     });
 
-    it('should navigate queue', () => {
-      const { result } = renderHook(() => useQueue(), { wrapper });
-      const tracks = [
-        { id: 1, title: 'Track 1', artist: 'Artist', duration: 180 },
-        { id: 2, title: 'Track 2', artist: 'Artist', duration: 200 },
-      ];
-
-      act(() => {
-        result.current.addMany(tracks);
-      });
-
-      expect(result.current.currentIndex).toBe(0);
-
-      act(() => {
-        result.current.next();
-      });
-
-      expect(result.current.currentIndex).toBe(1);
-
-      act(() => {
-        result.current.previous();
-      });
-
-      expect(result.current.currentIndex).toBe(0);
-    });
-
     it('should calculate remaining time', () => {
       const { result } = renderHook(() => useQueue(), { wrapper });
       const tracks = [

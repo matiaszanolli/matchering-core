@@ -234,50 +234,6 @@ const queueSlice = createSlice({
     },
 
     /**
-     * Go to next track
-     */
-    nextTrack: {
-      reducer(state, action: PayloadAction<void, string, { timestamp: number }>) {
-        if (state.repeatMode === 'one') return; // stay on current track
-        if (state.currentIndex < state.tracks.length - 1) {
-          state.currentIndex += 1;
-        } else if (state.repeatMode === 'all') {
-          state.currentIndex = 0; // wrap to first track
-        } else {
-          return; // 'off' at end — do nothing
-        }
-        state.lastUpdated = action.meta.timestamp;
-      },
-      prepare() {
-        return { payload: undefined, meta: { timestamp: Date.now() } };
-      },
-    },
-
-    /**
-     * Go to previous track
-     */
-    previousTrack: {
-      reducer(state, action: PayloadAction<void, string, { timestamp: number }>) {
-        if (state.repeatMode === 'one') return; // stay on current track
-        if (state.currentIndex > 0) {
-          state.currentIndex -= 1;
-        } else if (state.repeatMode === 'all') {
-          // #4457: tracks.length - 1 is -1 on an empty queue, violating the
-          // 0 <= currentIndex invariant — the stale -1 would then persist
-          // (nothing else resets it) until a later add left the queue
-          // showing "no current track" despite having one.
-          state.currentIndex = Math.max(0, state.tracks.length - 1); // wrap to last track
-        } else {
-          return; // 'off' at start — do nothing
-        }
-        state.lastUpdated = action.meta.timestamp;
-      },
-      prepare() {
-        return { payload: undefined, meta: { timestamp: Date.now() } };
-      },
-    },
-
-    /**
      * Set loading state
      */
     setIsLoading: {
@@ -367,8 +323,6 @@ export const {
   setQueue,
   updateTrackById,
   setCurrentIndex,
-  nextTrack,
-  previousTrack,
   setIsLoading,
   setError,
   clearError,

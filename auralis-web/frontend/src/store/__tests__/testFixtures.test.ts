@@ -332,7 +332,7 @@ describe('Redux Test Fixtures', () => {
 
       // 2. Make changes
       store.dispatch(playerActions.setVolume(40));
-      store.dispatch(queueActions.nextTrack());
+      store.dispatch(queueActions.setCurrentIndex(1));
 
       // 3. Verify results
       const state = store.getState();

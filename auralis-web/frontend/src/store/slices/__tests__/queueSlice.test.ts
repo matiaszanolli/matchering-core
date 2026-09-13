@@ -12,8 +12,6 @@ import reducer, {
   clearQueue,
   setQueue,
   setCurrentIndex,
-  nextTrack,
-  previousTrack,
   setIsLoading,
   setError,
   clearError,
@@ -213,111 +211,6 @@ describe('queueSlice', () => {
   it('setCurrentIndex ignores out-of-range index', () => {
     let state = reducer(initialState, addTrack(mockTrack(1)));
     state = reducer(state, setCurrentIndex(5));
-    expect(state.currentIndex).toBe(0);
-  });
-
-  it('nextTrack increments index', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2)]));
-    state = reducer(state, nextTrack());
-    expect(state.currentIndex).toBe(1);
-  });
-
-  it('nextTrack does not go past last track', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2)]));
-    state = { ...state, currentIndex: 1 };
-    state = reducer(state, nextTrack());
-    expect(state.currentIndex).toBe(1);
-  });
-
-  it('previousTrack decrements index', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2)]));
-    state = { ...state, currentIndex: 1 };
-    state = reducer(state, previousTrack());
-    expect(state.currentIndex).toBe(0);
-  });
-
-  it('previousTrack does not go below zero', () => {
-    let state = reducer(initialState, addTrack(mockTrack(1)));
-    state = reducer(state, previousTrack());
-    expect(state.currentIndex).toBe(0);
-  });
-
-  // ─── Repeat mode: 'one' (stay on current track) ────────────────
-
-  it('nextTrack stays on current track when repeatMode is "one"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 1, repeatMode: 'one' };
-    state = reducer(state, nextTrack());
-    expect(state.currentIndex).toBe(1);
-  });
-
-  it('previousTrack stays on current track when repeatMode is "one"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 1, repeatMode: 'one' };
-    state = reducer(state, previousTrack());
-    expect(state.currentIndex).toBe(1);
-  });
-
-  it('nextTrack does not bump lastUpdated when repeatMode is "one"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2)]));
-    state = { ...state, currentIndex: 0, repeatMode: 'one', lastUpdated: 42 };
-    state = reducer(state, nextTrack());
-    expect(state.lastUpdated).toBe(42);
-  });
-
-  // ─── Repeat mode: 'all' (wrap around) ───────────────────────────
-
-  it('nextTrack wraps to first track when repeatMode is "all"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 2, repeatMode: 'all' };
-    state = reducer(state, nextTrack());
-    expect(state.currentIndex).toBe(0);
-  });
-
-  it('nextTrack still advances normally mid-queue when repeatMode is "all"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 0, repeatMode: 'all' };
-    state = reducer(state, nextTrack());
-    expect(state.currentIndex).toBe(1);
-  });
-
-  it('previousTrack wraps to last track when repeatMode is "all"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 0, repeatMode: 'all' };
-    state = reducer(state, previousTrack());
-    expect(state.currentIndex).toBe(2);
-  });
-
-  it('previousTrack still decrements normally mid-queue when repeatMode is "all"', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 2, repeatMode: 'all' };
-    state = reducer(state, previousTrack());
-    expect(state.currentIndex).toBe(1);
-  });
-
-  it('previousTrack on an empty queue with repeatMode "all" leaves currentIndex at 0, not -1 (#4457)', () => {
-    // tracks.length - 1 is -1 on an empty queue, violating the
-    // 0 <= currentIndex invariant — Math.max(0, ...) must clamp it.
-    const state = reducer(
-      { ...initialState, currentIndex: 0, repeatMode: 'all' },
-      previousTrack()
-    );
-    expect(state.currentIndex).toBe(0);
-  });
-
-  // ─── Repeat mode: 'off' at boundaries (explicit, mirrors 'all') ─
-
-  it('nextTrack does not wrap when repeatMode is "off" and at the last track', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 2, repeatMode: 'off' };
-    state = reducer(state, nextTrack());
-    expect(state.currentIndex).toBe(2);
-  });
-
-  it('previousTrack does not wrap when repeatMode is "off" and at the first track', () => {
-    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
-    state = { ...state, currentIndex: 0, repeatMode: 'off' };
-    state = reducer(state, previousTrack());
     expect(state.currentIndex).toBe(0);
   });
 
