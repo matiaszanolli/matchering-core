@@ -58,6 +58,12 @@ def _make_engine(db_path: Path):
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=60000")
+        # #4510: foreign-key enforcement is per-connection in SQLite, and the
+        # other two engines on this same library.db (database.py,
+        # migration_engine.py) both enable it. Without it, fingerprint writes
+        # through this self-created engine would accept a stale track_id the
+        # main engine rejects.
+        cursor.execute("PRAGMA foreign_keys=ON")
 
     return engine
 
