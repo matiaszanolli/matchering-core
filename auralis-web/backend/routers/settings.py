@@ -24,8 +24,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from helpers import seed_enhancement_settings
-from pydantic import BaseModel, ConfigDict, Field
+import math
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from schemas import (  # shared preset enum (#4424) / intensity constraint (#4600)
+    VALID_PRESETS,
     EnhancementIntensity,
     EnhancementPresetLiteral,
 )
@@ -149,13 +152,48 @@ class SettingsResponse(BaseModel):
     language: str | None = None
     show_visualizations: bool | None = None
     mini_player_on_close: bool | None = None
-    default_preset: str | None = None
+    # #4647: these mirror SettingsUpdateRequest's constraints, so OpenAPI
+    # advertises the same closed preset enum and 0.0-1.0 intensity on the way
+    # out as on the way in. The validators below keep that from turning a
+    # legacy or hand-edited row into a response-validation 500 on
+    # GET /api/settings: an off-list value degrades to null with a warning —
+    # the same tolerance helpers.seed_enhancement_settings applies to the
+    # stored preset (#4710).
+    default_preset: EnhancementPresetLiteral | None = None
     auto_enhance: bool | None = None
-    enhancement_intensity: float | None = None
+    enhancement_intensity: EnhancementIntensity | None = None
     cache_size: int | None = None
     max_concurrent_scans: int | None = None
     enable_analytics: bool | None = None
     debug_mode: bool | None = None
+
+    @field_validator("default_preset", mode="before")
+    @classmethod
+    def _degrade_unknown_preset(cls, value: object) -> object:
+        if value is None or value in VALID_PRESETS:
+            return value
+        logger.warning(
+            f"Stored default_preset {value!r} is not one of {VALID_PRESETS}; "
+            "reporting it as null"
+        )
+        return None
+
+    @field_validator("enhancement_intensity", mode="before")
+    @classmethod
+    def _degrade_invalid_intensity(cls, value: object) -> object:
+        if value is None:
+            return None
+        try:
+            as_float = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            as_float = math.nan
+        if isinstance(value, bool) or not math.isfinite(as_float) or not 0.0 <= as_float <= 1.0:
+            logger.warning(
+                f"Stored enhancement_intensity {value!r} is outside 0.0-1.0; "
+                "reporting it as null"
+            )
+            return None
+        return as_float
 
 
 class SettingsUpdateResponse(BaseModel):

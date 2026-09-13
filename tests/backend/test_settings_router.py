@@ -188,3 +188,56 @@ def test_get_settings_returns_typed_shape(client: TestClient) -> None:
     body = resp.json()
     assert body["theme"] == "dark"
     assert body["volume"] == 0.8
+
+
+# ---------------------------------------------------------------------------
+# #4647: the response side carries the same constraints as the request side
+# ---------------------------------------------------------------------------
+
+
+def _client_with_row(**overrides) -> TestClient:
+    repo = _FakeSettingsRepo()
+    row = {**_DEFAULT_SETTINGS, **overrides}
+    repo.get_settings = lambda: _FakeSettings(row)  # type: ignore[method-assign]
+    app = FastAPI()
+    app.include_router(create_settings_router(lambda: repo))
+    return TestClient(app)
+
+
+def test_response_schema_advertises_the_preset_enum_and_intensity_bounds() -> None:
+    app = FastAPI()
+    app.include_router(create_settings_router(lambda: _FakeSettingsRepo()))
+    props = app.openapi()["components"]["schemas"]["SettingsResponse"]["properties"]
+
+    preset_enum = {
+        v for option in props["default_preset"]["anyOf"] for v in option.get("enum", [])
+    }
+    assert preset_enum == {"adaptive", "gentle", "warm", "bright", "punchy"}
+
+    bounded = [o for o in props["enhancement_intensity"]["anyOf"] if o.get("type") == "number"]
+    assert bounded and bounded[0]["minimum"] == 0.0 and bounded[0]["maximum"] == 1.0
+
+
+def test_canonical_stored_values_pass_through() -> None:
+    body = _client_with_row(default_preset="warm", enhancement_intensity=0.4).get("/api/settings").json()
+    assert body["default_preset"] == "warm"
+    assert body["enhancement_intensity"] == 0.4
+
+
+def test_a_legacy_off_list_preset_degrades_to_null_not_a_500(caplog) -> None:
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        resp = _client_with_row(default_preset="vintage").get("/api/settings")
+
+    assert resp.status_code == 200
+    assert resp.json()["default_preset"] is None
+    assert any("default_preset" in r.message for r in caplog.records)
+
+
+@pytest.mark.parametrize("stored", [1.7, -0.1, float("nan"), "loud"])
+def test_an_out_of_range_stored_intensity_degrades_to_null_not_a_500(stored) -> None:
+    resp = _client_with_row(enhancement_intensity=stored).get("/api/settings")
+    assert resp.status_code == 200
+    assert resp.json()["enhancement_intensity"] is None
+
