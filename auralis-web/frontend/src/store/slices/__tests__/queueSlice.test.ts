@@ -82,6 +82,26 @@ describe('queueSlice', () => {
     expect(state.currentIndex).toBe(1);
   });
 
+  it('addTrack inserts mid-queue in order and bumps lastUpdated (#4483)', () => {
+    // The #4927 pair above does not pin this: its "after it" case inserts at
+    // position 5 into a 3-track queue, which is out of range and takes the
+    // append branch, and neither case asserts the resulting order.
+    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2), mockTrack(3)]));
+    state = { ...state, currentIndex: 0, lastUpdated: 0 };
+
+    state = reducer(state, addTrack(mockTrack(99), 1));
+
+    expect(state.tracks.map((t) => t.id)).toEqual([1, 99, 2, 3]);
+    expect(state.currentIndex).toBe(0); // inserted after the playing track
+    expect(state.lastUpdated).toBeGreaterThan(0);
+  });
+
+  it('addTrack at position === length appends via the splice branch (#4483)', () => {
+    let state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2)]));
+    state = reducer(state, addTrack(mockTrack(99), 2));
+    expect(state.tracks.map((t) => t.id)).toEqual([1, 2, 99]);
+  });
+
   it('addTracks appends multiple tracks', () => {
     const state = reducer(initialState, addTracks([mockTrack(1), mockTrack(2)]));
     expect(state.tracks).toHaveLength(2);
