@@ -260,9 +260,18 @@ class AlbumRepository(BaseRepository):
 
                     if artwork_path:
                         # Update album with artwork path
+                        previous_path = album.artwork_path
                         album.artwork_path = artwork_path
                         session.commit()
                         session.refresh(album)
+                        # Remove the superseded file now that the new path is
+                        # committed (mirrors delete_artwork below; #4850).
+                        # Every write generates a unique
+                        # album_{id}_{content_hash}.ext filename, so leaving
+                        # this unlinked orphaned one more file on every
+                        # re-extract with no sweeper anywhere to reclaim it.
+                        if previous_path and previous_path != artwork_path:
+                            self.artwork_extractor.delete_artwork(previous_path)
                         return artwork_path
 
             return None
@@ -335,6 +344,7 @@ class AlbumRepository(BaseRepository):
                 if not album:
                     return None
 
+                previous_path = album.artwork_path
                 album.artwork_path = artwork_path
                 session.commit()
                 session.refresh(album)
@@ -344,6 +354,12 @@ class AlbumRepository(BaseRepository):
                 # router hands this album straight to to_dict().
                 _ = album.artist, album.tracks
                 session.expunge(album)
+                # Remove the superseded file now that the new path is
+                # committed (mirrors delete_artwork below; #4850) -- the
+                # download flow through here left the previous file on disk
+                # forever on every re-download that produced different bytes.
+                if previous_path and previous_path != artwork_path:
+                    self.artwork_extractor.delete_artwork(previous_path)
                 return album
             except Exception:
                 session.rollback()
