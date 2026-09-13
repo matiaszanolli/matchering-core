@@ -268,9 +268,9 @@ screen.debug(screen.getByRole('button'));
 - `GET /api/library/artists` - List artists
 
 ### Enhancement
-- `GET /api/enhancement/state` - Get enhancement state
-- `POST /api/enhancement/toggle` - Toggle enhancement
-- `POST /api/enhancement/preset` - Set preset
+- `POST /api/player/enhancement/toggle` - Toggle enhancement
+- `POST /api/player/enhancement/preset` - Set preset
+- `POST /api/player/enhancement/intensity` - Set intensity
 
 ### Playlists
 - `GET /api/playlists` - List playlists

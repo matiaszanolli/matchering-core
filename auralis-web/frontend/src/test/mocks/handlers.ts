@@ -391,38 +391,14 @@ export const handlers = [
   // ============================================================
   // ENHANCEMENT ENDPOINTS
   // ============================================================
+  // The backend only ever served /api/player/enhancement/* (routers/
+  // enhancement.py registers toggle/preset/intensity/status under that
+  // prefix, never a bare /api/enhancement/*). The three bare-path handlers
+  // that used to sit here (GET .../state, POST .../toggle, POST .../preset)
+  // were residue from the retired categorical-architecture era -- dead
+  // mocks for routes nothing real or under test ever called (#4971).
 
-  // GET /api/enhancement/state - Get enhancement state
-  http.get(`${API_BASE}/enhancement/state`, async () => {
-    await delay(50);
-    return HttpResponse.json({
-      enabled: false,
-      preset: 'adaptive',
-      presets: ['adaptive', 'gentle', 'warm', 'bright', 'punchy']
-    });
-  }),
-
-  // POST /api/enhancement/toggle - Toggle enhancement
-  http.post(`${API_BASE}/enhancement/toggle`, async ({ request }) => {
-    const body = await request.json();
-    await delay(100);
-    return HttpResponse.json({
-      success: true,
-      enabled: (body as any).enabled
-    });
-  }),
-
-  // POST /api/enhancement/preset - Set preset
-  http.post(`${API_BASE}/enhancement/preset`, async ({ request }) => {
-    const body = await request.json();
-    await delay(100);
-    return HttpResponse.json({
-      success: true,
-      preset: (body as any).preset
-    });
-  }),
-
-  // POST /api/player/enhancement/toggle - Toggle enhancement (EnhancementContext API)
+  // POST /api/player/enhancement/toggle - Toggle enhancement
   http.post(`${API_BASE}/player/enhancement/toggle`, async ({ request }) => {
     const url = new URL(request.url);
     const enabled = url.searchParams.get('enabled') === 'true';
@@ -437,7 +413,7 @@ export const handlers = [
     });
   }),
 
-  // POST /api/player/enhancement/preset - Set preset (EnhancementContext API)
+  // POST /api/player/enhancement/preset - Set preset
   http.post(`${API_BASE}/player/enhancement/preset`, async ({ request }) => {
     const url = new URL(request.url);
     const preset = url.searchParams.get('preset') || 'adaptive';
@@ -452,7 +428,7 @@ export const handlers = [
     });
   }),
 
-  // POST /api/player/enhancement/intensity - Set intensity (EnhancementContext API)
+  // POST /api/player/enhancement/intensity - Set intensity
   http.post(`${API_BASE}/player/enhancement/intensity`, async ({ request }) => {
     const url = new URL(request.url);
     const intensity = parseFloat(url.searchParams.get('intensity') || '1.0');

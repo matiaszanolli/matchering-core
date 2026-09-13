@@ -71,7 +71,7 @@ const TestConcurrentComponent = () => {
     const endpoints = [
       '/api/player/state',
       '/api/library/tracks?limit=10',
-      '/api/enhancement/state',
+      '/api/player/enhancement/status',
       '/api/albums?limit=10',
     ];
 
