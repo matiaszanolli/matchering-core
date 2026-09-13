@@ -675,9 +675,6 @@ app.on('before-quit', (event) => {
   }
 });
 
-// Handle protocol for deep linking (future use)
-app.setAsDefaultProtocolClient('auralis');
-
 // Security: Prevent new window creation (Electron 12+ API)
 app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
