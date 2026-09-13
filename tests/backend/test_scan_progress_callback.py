@@ -73,15 +73,19 @@ def _make_progress_callback(loop: asyncio.AbstractEventLoop) -> object:
 class TestProgressCallbackRobustness:
     """_progress_callback must log on malformed input, not silently crash (#3864)."""
 
+    # Named `loop`, not `loop`: that name belonged to pytest-asyncio's
+    # own (since-removed) fixture, and shadowing it made this plain loop for
+    # the callback's run_coroutine_threadsafe target look like async plumbing
+    # (#4332).
     @pytest.fixture
-    def event_loop(self):
+    def loop(self):
         loop = asyncio.new_event_loop()
         yield loop
         loop.close()
 
-    def test_callback_with_valid_dict_does_not_raise(self, event_loop):
+    def test_callback_with_valid_dict_does_not_raise(self, loop):
         """Normal progress_data dict must be processed without error."""
-        cb = _make_progress_callback(event_loop)
+        cb = _make_progress_callback(loop)
 
         with patch("asyncio.run_coroutine_threadsafe"):
             # Must not raise
@@ -93,9 +97,9 @@ class TestProgressCallbackRobustness:
                 "current_file": "/music/track.mp3",
             })
 
-    def test_callback_with_non_dict_logs_warning_not_raise(self, event_loop, caplog):
+    def test_callback_with_non_dict_logs_warning_not_raise(self, loop, caplog):
         """Non-dict progress_data must be caught and logged, not crash (#3864)."""
-        cb = _make_progress_callback(event_loop)
+        cb = _make_progress_callback(loop)
 
         with caplog.at_level(logging.WARNING, logger="routers.library"):
             with patch("asyncio.run_coroutine_threadsafe"):
@@ -105,9 +109,9 @@ class TestProgressCallbackRobustness:
             "Expected a warning about malformed progress_data (#3864)"
         )
 
-    def test_callback_with_none_logs_warning_not_raise(self, event_loop, caplog):
+    def test_callback_with_none_logs_warning_not_raise(self, loop, caplog):
         """None progress_data must also be caught and logged."""
-        cb = _make_progress_callback(event_loop)
+        cb = _make_progress_callback(loop)
 
         with caplog.at_level(logging.WARNING, logger="routers.library"):
             with patch("asyncio.run_coroutine_threadsafe"):
@@ -115,9 +119,9 @@ class TestProgressCallbackRobustness:
 
         assert any("progress callback failed" in r.message for r in caplog.records)
 
-    def test_callback_with_integer_logs_warning_not_raise(self, event_loop, caplog):
+    def test_callback_with_integer_logs_warning_not_raise(self, loop, caplog):
         """Integer progress_data (another malformed type) is caught and logged."""
-        cb = _make_progress_callback(event_loop)
+        cb = _make_progress_callback(loop)
 
         with caplog.at_level(logging.WARNING, logger="routers.library"):
             with patch("asyncio.run_coroutine_threadsafe"):

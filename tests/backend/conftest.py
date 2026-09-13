@@ -4,7 +4,6 @@ Backend Test Configuration
 Provides fixtures and configuration for backend testing.
 """
 
-import asyncio
 import sys
 from pathlib import Path
 
@@ -48,19 +47,6 @@ def _bypass_streaming_path_validation(monkeypatch):
     monkeypatch.setattr("core.stream_normal.validate_file_path", _existence_only_check)
     monkeypatch.setattr("core.stream_enhanced.validate_file_path", _existence_only_check)
     monkeypatch.setattr("core.stream_seek.validate_file_path", _existence_only_check)
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """
-    Create event loop for async tests.
-
-    This fixture ensures pytest-asyncio works correctly.
-    """
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture
