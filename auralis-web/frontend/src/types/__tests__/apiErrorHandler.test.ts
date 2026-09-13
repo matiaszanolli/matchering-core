@@ -68,4 +68,26 @@ describe('ApiErrorHandler.parse', () => {
 
     expect(parsed.status).toBe(500);
   });
+
+  it('accepts a well-formed {status: number, message: string} shape (#4949)', () => {
+    // Regression: parse() must keep passing through a real ApiError-shaped
+    // object once it delegates to isApiError() instead of a weaker inline check.
+    const parsed = ApiErrorHandler.parse({ status: 500, message: 'x' });
+
+    expect(parsed).toEqual({ status: 500, message: 'x' });
+  });
+
+  it('rejects an object whose status is stringly-typed rather than a number (#4949)', () => {
+    // ApiErrorHandler.parse() used to re-implement isApiError's `in`-operator
+    // check without isApiError's typeof validation, so {status: "500"} was
+    // cast straight through as a well-typed ApiError. Downstream
+    // isNetworkError's `error.status >= 500` then silently misbehaves
+    // (string/number comparison) instead of falling through to the 500
+    // default. Now delegates to isApiError(), which requires `typeof status
+    // === 'number'`.
+    const parsed = ApiErrorHandler.parse({ status: '500', message: 'x' });
+
+    expect(parsed.status).toBe(500);
+    expect(parsed.message).toBe('Unknown error');
+  });
 });

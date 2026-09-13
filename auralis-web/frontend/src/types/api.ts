@@ -60,8 +60,8 @@ export class ApiErrorHandler {
       };
     }
 
-    if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
-      return error as ApiError;
+    if (isApiError(error)) {
+      return error;
     }
 
     return {
