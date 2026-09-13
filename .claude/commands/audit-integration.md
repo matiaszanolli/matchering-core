@@ -65,7 +65,7 @@ See `.claude/commands/_audit-common.md` for project layout, severity framework, 
 | Runtime settings | Backend | shared `enhancement_settings` dict (mutated in place, seeded at startup from UserSettings) |
 | Processing config | Engine | `auralis/core/config/unified_config.py` (UnifiedConfig) — the only config layer since #4918 |
 | DSP pipeline | Engine | `auralis/core/hybrid_processor.py` → DSP modules |
-| Real-time application | Engine | `auralis/player/realtime_processor.py` |
+| Real-time application | Engine | `auralis/player/realtime/` |
 
 **Check**: Config format — do frontend slider values map correctly to engine parameters? Does the transport actually pass the *current* preset/intensity through to playback, or re-read stale Redux state? Range validation — can the frontend send out-of-range values? Real-time vs offline — is the same config used for both paths? Do the enhancement settings participate in the chunk cache key, or can a settings change serve cached audio mastered with the *previous* settings? Latency — does enhancement cause audible gaps?
 

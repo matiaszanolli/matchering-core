@@ -25,7 +25,7 @@ Determine scope from arguments:
 | Core Pipeline | `auralis/core/hybrid_processor.py`, `simple_mastering.py`, `processing/` |
 | DSP Modules | `auralis/dsp/eq/psychoacoustic_eq.py`, `auralis/dsp/advanced_dynamics.py`, `auralis/dsp/basic.py` |
 | Audio I/O | `auralis/io/unified_loader.py`, `results.py` |
-| Player RT Processing | `auralis/player/realtime_processor.py` |
+| Player RT Processing | `auralis/player/realtime/` |
 | Chunked Mastering | `auralis/core/mastering_chunk_loop.py`, `mastering_process_chunk.py` |
 | Backend Chunking | `auralis-web/backend/core/chunked_processor.py` |
 | Rust DSP Bindings | `vendor/auralis-dsp/src/*.rs` |

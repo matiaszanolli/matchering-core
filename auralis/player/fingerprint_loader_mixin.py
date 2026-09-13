@@ -14,7 +14,7 @@ from pathlib import Path
 
 from ..analysis.fingerprint.fingerprint_service import FingerprintService
 from ..utils.logging import debug, info, warning
-from .realtime_processor import RealtimeProcessor
+from .realtime import RealtimeProcessor
 
 
 class PlayerFingerprintLoaderMixin:

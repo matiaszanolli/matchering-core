@@ -25,7 +25,7 @@ See `.claude/commands/_audit-common.md` for project layout, severity framework, 
 | Continuous Processing | `auralis/core/processing/` | `continuous_space.py` (`ProcessingCoordinates` — the 3D space replacing discrete presets), `continuous_mode.py`, `adaptive_mode.py`, `hybrid_mode.py`, `parameter_generator.py`, `target_derivation.py`, `delta_eq.py`, `cross_dimensional_guard.py`, `hf_aware_limiter.py`, `base/`. See the Retired Architecture table in `_audit-common.md` — categorical branch classification is gone; do not report its absence. |
 | Core Config | `auralis/core/config/` | `unified_config.py` (UnifiedConfig), `factory.py`, `settings.py`, `preset_profiles.py`, `genre_profiles.py`. This package is now the *only* config layer — the same-named legacy module was deleted in #4918, so there is no second definition site to reconcile. |
 | DSP Modules | `auralis/dsp/` | `basic.py`, `advanced_dynamics.py`, `eq/psychoacoustic_eq.py` + `eq/parallel_eq_processor/`, `dynamics/`, `utils/` |
-| Player | `auralis/player/` | `enhanced_audio_player.py`, `gapless_playback_engine.py`, `queue_controller.py`, `playback_controller.py`, `realtime_processor.py` + `realtime/`, `components/`, `audio_file_manager.py` |
+| Player | `auralis/player/` | `enhanced_audio_player.py`, `gapless_playback_engine.py`, `queue_controller.py`, `playback_controller.py`, `realtime/`, `components/`, `audio_file_manager.py` |
 | Audio I/O | `auralis/io/` | `unified_loader.py`, `loader.py`, `loaders/`, `formats.py`, `saver.py`, `results.py` |
 | Chunked Mastering | `auralis/core/` | `mastering_chunk_loop.py`, `mastering_process_chunk.py`, `mastering_prepare.py`, `mastering_notch_context.py`, `mastering_diagnostics.py` — the engine-side chunk loop that replaced the deleted parallel processor (#4565) |
 | Optimization (test-only) | `auralis/optimization/` | `acceleration/`, `caching/`, `memory/`, `profiling/`, `performance_optimizer.py`. **Not imported by any production code** — tests are the only importers. Findings here are tech debt, not engine defects; cap severity at LOW unless you can show a runtime call path. |
@@ -83,7 +83,7 @@ Out of scope: React frontend, FastAPI backend (routing, WebSocket layer), Electr
 
 ### Dimension 3: Player State Machine
 
-**Key files**: `auralis/player/enhanced_audio_player.py`, `auralis/player/gapless_playback_engine.py`, `auralis/player/queue_controller.py`, `auralis/player/playback_controller.py`, `auralis/player/realtime_processor.py` + `auralis/player/realtime/`, `auralis/player/components/`, `auralis/player/audio_file_manager.py`
+**Key files**: `auralis/player/enhanced_audio_player.py`, `auralis/player/gapless_playback_engine.py`, `auralis/player/queue_controller.py`, `auralis/player/playback_controller.py`, `auralis/player/realtime/`, `auralis/player/components/`, `auralis/player/audio_file_manager.py`
 
 **Check**:
 - [ ] State transitions — are play/pause/stop/seek transitions atomic under RLock?

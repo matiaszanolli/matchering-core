@@ -73,7 +73,7 @@ def realtime_processor():
         RealtimeProcessor: Configured processor instance
     """
     from auralis.player.config import PlayerConfig
-    from auralis.player.realtime_processor import RealtimeProcessor
+    from auralis.player.realtime import RealtimeProcessor
 
     config = PlayerConfig()
     return RealtimeProcessor(config)

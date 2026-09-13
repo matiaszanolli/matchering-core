@@ -26,7 +26,7 @@ from .audio_file_manager import AudioFileManager
 from .gapless_playback_engine import GaplessPlaybackEngine
 from .integration_manager import IntegrationManager
 from .playback_controller import PlaybackController
-from .realtime_processor import RealtimeProcessor
+from .realtime import RealtimeProcessor
 
 
 class PlayerFileLoadingMixin:

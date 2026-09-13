@@ -20,7 +20,7 @@ import numpy as np
 sys.path.insert(0, os.path.abspath('../..'))
 
 from auralis.player.config import PlayerConfig
-from auralis.player.realtime_processor import (
+from auralis.player.realtime import (
     AdaptiveGainSmoother,
     AutoMasterProcessor,
     PerformanceMonitor,

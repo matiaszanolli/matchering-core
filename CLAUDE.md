@@ -108,7 +108,7 @@ auralis/                          Core Python audio engine
 │   ├── enhanced_audio_player.py    Main player with adaptive DSP
 │   ├── gapless_playback_engine.py  Gapless playback
 │   ├── queue_controller.py         Queue management
-│   └── realtime_processor.py       Real-time processing
+│   └── realtime/                   Real-time processing (RealtimeProcessor, AutoMasterProcessor)
 ├── library/                      SQLite library (~/.auralis/library.db)
 │   ├── database.py                 LibraryDatabase (engine, migration, sessions, scan slots)
 │                                     Startup stores it under the globals key `library_database`

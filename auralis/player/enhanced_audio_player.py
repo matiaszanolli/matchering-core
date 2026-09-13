@@ -35,7 +35,7 @@ from .player_properties_mixin import PlayerPropertiesMixin
 from .player_queue_navigation_mixin import PlayerQueueNavigationMixin
 from .player_streaming_mixin import PlayerStreamingMixin
 from .queue_controller import QueueController
-from .realtime_processor import RealtimeProcessor
+from .realtime import RealtimeProcessor
 
 
 class AudioPlayer(

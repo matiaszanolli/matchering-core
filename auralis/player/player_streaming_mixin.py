@@ -30,7 +30,7 @@ from .audio_file_manager import AudioFileManager
 from .config import PlayerConfig
 from .playback_controller import PlaybackController
 from .queue_controller import QueueController
-from .realtime_processor import RealtimeProcessor
+from .realtime import RealtimeProcessor
 
 
 class PlayerStreamingMixin:

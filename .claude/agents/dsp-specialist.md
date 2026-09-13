@@ -25,7 +25,7 @@ You are the **DSP Specialist** for Auralis — a Python audio engine with a Rust
 - `auralis/core/mastering_chunk_loop.py`, `auralis/core/mastering_process_chunk.py` — the engine's chunk loop (sequential, carries context between chunks). The old *auralis/optimization/parallel_processor.py* was deleted as unreachable in #4565; the rest of `auralis/optimization/` is imported only by tests.
 
 **Player-side real-time DSP** (`auralis/player/`):
-- `auralis/player/realtime_processor.py` — RT DSP for playback
+- `auralis/player/realtime/` — RT DSP for playback
 - `auralis/player/enhanced_audio_player.py` — uses RT processor under lock
 
 **Rust hot paths** (`vendor/auralis-dsp/`):

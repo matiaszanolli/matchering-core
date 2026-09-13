@@ -312,7 +312,7 @@ class TestPlayerComponents:
     def test_realtime_processor_functionality(self):
         """Test realtime processor."""
         try:
-            from auralis.player.realtime_processor import RealtimeProcessor
+            from auralis.player.realtime import RealtimeProcessor
 
             # Test basic processor creation
             processor = RealtimeProcessor()
