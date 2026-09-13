@@ -24,30 +24,18 @@ import aiohttp
 from auralis.utils.artwork_security import (
     MAX_ARTWORK_PAYLOAD_BYTES as _MAX_ARTWORK_BYTES,
 )
+from auralis.utils.artwork_security import detect_image_extension as _detect_image_extension
 from auralis.utils.artwork_security import validate_artwork_url as _validate_artwork_url
 from auralis.utils.logging import sanitize_log_value
 
 logger = logging.getLogger(__name__)
 
-
-def _detect_image_extension(data: bytes, default: str = "jpg") -> str:
-    """Pick a file extension from an image's magic bytes.
-
-    Cover Art Archive / iTunes can return PNG or WebP even when we requested
-    a JPEG, and the GET endpoint infers Content-Type from the extension, so a
-    PNG saved as .jpg is served image/jpeg (#4419). Mirrors the embedded
-    extractor in auralis/library/artwork.py. Falls back to ``default`` for
-    unrecognised bytes.
-    """
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png"
-    if data[:3] == b"\xff\xd8\xff":
-        return "jpg"
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "webp"
-    if data[:6] in (b"GIF87a", b"GIF89a"):
-        return "gif"
-    return default
+# _detect_image_extension used to be defined here; it now lives in
+# auralis.utils.artwork_security so library/artwork.py's embedded/folder
+# extractor can share it too (#4849) instead of re-trusting a tag's declared
+# MIME. Re-imported under the original name above so this module's own call
+# site and tests/backend/test_artwork_extension_detection.py's import both
+# keep working unchanged.
 
 
 # #4686: aiohttp's default ClientTimeout is total=300s, and the downloader

@@ -12,7 +12,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -313,6 +313,65 @@ class TestBoundDimensions:
 
             assert saved is not None
             assert Path(saved).read_bytes() == junk
+
+
+class TestSaveArtworkExtensionSniffing:
+    """The saved extension matches the real bytes, not the declared mime_type (#4849).
+
+    #4419 fixed this for online-downloaded artwork (services/artwork_downloader.py);
+    the embedded/folder extractor here had the identical defect and only ever
+    special-cased 'png', defaulting GIF/WebP (and anything else) to '.jpg'.
+    """
+
+    def test_gif_bytes_saved_with_gif_extension_despite_mime_type(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            extractor = ArtworkExtractor(tmpdir)
+            gif_data = b"GIF89a" + b"\x00" * 32
+
+            result = extractor._save_artwork(gif_data, album_id=1, mime_type="image/gif")
+
+            assert result is not None
+            assert result.endswith(".gif")
+
+    def test_webp_bytes_saved_with_webp_extension_even_when_mime_disagrees(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            extractor = ArtworkExtractor(tmpdir)
+            # A tag whose declared MIME disagrees with the actual bytes --
+            # exactly what the old mime_type-trusting code got wrong.
+            webp_data = b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP" + b"\x00" * 8
+
+            result = extractor._save_artwork(webp_data, album_id=2, mime_type="image/jpeg")
+
+            assert result is not None
+            assert result.endswith(".webp")
+
+    def test_oversized_webp_stays_webp_after_downscaling(self):
+        """The re-encode-on-downscale path must not silently convert to JPEG.
+
+        _bound_dimensions used to force every non-PNG format to JPEG when
+        resizing, which would have reproduced this exact bug for an oversized
+        WebP/GIF cover: correct extension chosen up front, then overwritten
+        with JPEG bytes during the resize.
+        """
+        import io
+
+        from PIL import Image
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (4000, 3000), (5, 5, 5)).save(buffer, format="WEBP")
+        oversized_webp = buffer.getvalue()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            extractor = ArtworkExtractor(tmpdir)
+
+            result = extractor._save_artwork(oversized_webp, album_id=3, mime_type="image/webp")
+
+            assert result is not None
+            assert result.endswith(".webp")
+            from auralis.library.artwork import _MAX_ARTWORK_DIMENSION
+            with Image.open(result) as saved:
+                assert saved.format == "WEBP"
+                assert max(saved.size) <= _MAX_ARTWORK_DIMENSION
 
 
 class TestGetArtworkPath:

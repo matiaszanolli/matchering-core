@@ -17,6 +17,7 @@ from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3
 from mutagen.mp4 import MP4, MP4Cover
 
+from ..utils.artwork_security import detect_image_extension
 from ..utils.logging import debug, error, info
 
 # Cap the largest side of stored artwork (#4439). Embedded/folder covers can be
@@ -241,7 +242,7 @@ class ArtworkExtractor:
 
         return None, None
 
-    def _bound_dimensions(self, artwork_data: bytes, ext: str) -> bytes:
+    def _bound_dimensions(self, artwork_data: bytes) -> bytes:
         """Downscale artwork whose largest side exceeds ``_MAX_ARTWORK_DIMENSION``.
 
         Bounds arbitrarily large embedded/folder covers (#4439) so oversized
@@ -251,7 +252,6 @@ class ArtworkExtractor:
 
         Args:
             artwork_data: Raw image bytes.
-            ext: Target file extension ('.png' or '.jpg'), selects re-encode format.
 
         Returns:
             Downscaled image bytes, or the original bytes if no resize was
@@ -267,7 +267,13 @@ class ArtworkExtractor:
                     return artwork_data
                 # thumbnail() preserves aspect ratio and only ever downsizes.
                 image.thumbnail((_MAX_ARTWORK_DIMENSION, _MAX_ARTWORK_DIMENSION))
-                fmt = 'PNG' if ext == '.png' else 'JPEG'
+                # Re-encode in the format Pillow itself detected rather than a
+                # caller-supplied extension (#4849) -- forcing every non-PNG
+                # format to JPEG here silently produced JPEG bytes under a
+                # .webp/.gif filename whenever a large WebP/GIF cover needed
+                # downscaling, reproducing this same issue's Content-Type
+                # mismatch for exactly the oversized case.
+                fmt = image.format or 'JPEG'
                 if fmt == 'JPEG' and image.mode not in ('RGB', 'L'):
                     image = image.convert('RGB')
                 buffer = io.BytesIO()
@@ -291,16 +297,20 @@ class ArtworkExtractor:
             Path to saved artwork file
         """
         try:
-            # Determine file extension from MIME type
-            if mime_type and 'png' in mime_type.lower():
-                ext = '.png'
-            else:
-                ext = '.jpg'  # Default to JPEG
-
             # Bound the stored image to a sane maximum dimension (#4439) so an
             # oversized embedded/folder cover isn't persisted and later streamed
             # at full resolution. Best-effort — falls back to the original bytes.
-            artwork_data = self._bound_dimensions(artwork_data, ext)
+            artwork_data = self._bound_dimensions(artwork_data)
+
+            # Sniff the real extension from the (possibly re-encoded) bytes
+            # rather than trusting the tag's declared mime_type (#4849) —
+            # mirrors services/artwork_downloader.py's #4419 fix. Sniffing
+            # AFTER bounding means the extension always matches what actually
+            # gets written to disk, even when an oversized non-JPEG/PNG image
+            # was re-encoded above. mime_type is kept only as the last-resort
+            # default for bytes neither sniff recognises.
+            default_ext = 'png' if mime_type and 'png' in mime_type.lower() else 'jpg'
+            ext = '.' + detect_image_extension(artwork_data, default=default_ext)
 
             # Generate unique filename using album ID and content hash
             content_hash = hashlib.md5(artwork_data).hexdigest()[:8]
