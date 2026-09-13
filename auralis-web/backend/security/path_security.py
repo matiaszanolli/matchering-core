@@ -228,11 +228,21 @@ def validate_file_path(
             continue
 
     if not is_allowed:
+        # Full detail (resolved path + every allowed directory -- the user's
+        # entire configured library layout) at DEBUG only, not in the
+        # exception's own string form (#4807). Four HTTP routes used to
+        # reflect str(e) verbatim into a 400 body; they now return a fixed
+        # generic message regardless of what PathValidationError says, but
+        # keeping the enumeration out of the exception itself removes the
+        # fragility at its root instead of relying on every future caller
+        # remembering not to reflect it. Matches startup.py's existing
+        # DEBUG-for-sensitive-paths convention (#3844/#4376).
         allowed_dirs_str = ", ".join(str(d) for d in allowed_base_dirs)
-        raise PathValidationError(
+        logger.debug(
             f"Path '{resolved_path}' is outside allowed directories. "
             f"Allowed directories: {allowed_dirs_str}"
         )
+        raise PathValidationError("Path is outside allowed directories")
 
     if not resolved_path.exists():
         raise PathValidationError(f"File does not exist: {resolved_path}")

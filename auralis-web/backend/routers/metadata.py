@@ -292,8 +292,12 @@ async def get_editable_fields(
         # Validate DB-retrieved filepath before any file I/O (fixes #2302)
         try:
             filepath_str = str(validate_file_path(str(track.filepath)))
-        except PathValidationError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid track filepath: {e}")
+        except PathValidationError:
+            # PathValidationError's own text names the resolved path and
+            # every allowed directory (#4807) -- validate_file_path already
+            # logs it once via _logs_rejections; the client gets a fixed,
+            # generic detail regardless of which check failed.
+            raise HTTPException(status_code=400, detail="Invalid track filepath")
         editable_fields = await asyncio.to_thread(metadata_editor.get_editable_fields, filepath_str)
 
         # Get current metadata (file I/O — run in thread)
@@ -341,8 +345,12 @@ async def get_track_metadata(
         # Validate DB-retrieved filepath before file I/O (fixes #2302)
         try:
             filepath_validated = str(validate_file_path(str(track.filepath)))
-        except PathValidationError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid track filepath: {e}")
+        except PathValidationError:
+            # PathValidationError's own text names the resolved path and
+            # every allowed directory (#4807) -- validate_file_path already
+            # logs it once via _logs_rejections; the client gets a fixed,
+            # generic detail regardless of which check failed.
+            raise HTTPException(status_code=400, detail="Invalid track filepath")
 
         # Read metadata from file (offloaded to thread to avoid event-loop block, fixes #2317)
         metadata = await asyncio.to_thread(metadata_editor.read_metadata, filepath_validated)
@@ -400,8 +408,12 @@ async def update_track_metadata(
         # Validate DB-retrieved filepath before any file I/O (fixes #2302)
         try:
             filepath_validated = str(validate_file_path(str(track.filepath)))
-        except PathValidationError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid track filepath: {e}")
+        except PathValidationError:
+            # PathValidationError's own text names the resolved path and
+            # every allowed directory (#4807) -- validate_file_path already
+            # logs it once via _logs_rejections; the client gets a fixed,
+            # generic detail regardless of which check failed.
+            raise HTTPException(status_code=400, detail="Invalid track filepath")
 
         # Write metadata to file (backup always enforced server-side, fixes #2407).
         # Offloaded to thread to avoid blocking the event loop (fixes #2317).

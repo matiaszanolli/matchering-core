@@ -1,15 +1,16 @@
 """
-Regression tests: path leak via result_data (#3848) and metadata 404 detail (#3849).
+Regression tests: path leak via result_data (#3848), metadata 404 detail
+(#3849), and PathValidationError's own text reflected into a 400 (#4807).
 
-Both findings belong to the same disclosure class as #3322 (server filesystem path
-in API responses). These tests assert the sanitised form is in place.
+All three findings belong to the same disclosure class as #3322 (server
+filesystem path in API responses). These tests assert the sanitised form is
+in place.
 """
 
-import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -78,30 +79,41 @@ class TestResultDataPathSanitisation:
 # #3849: metadata router 404 detail must not embed str(FileNotFoundError)
 # ---------------------------------------------------------------------------
 
+def _make_metadata_router_and_app():
+    """Build a minimal FastAPI app with just the metadata router.
+
+    Module-level (not a TestMetadata404DetailSanitisation-only helper) so
+    TestScanFoldersAndMetadataPathValidationSanitisation below can share it
+    rather than duplicating it for a sibling finding in the same disclosure
+    class (#4807).
+    """
+    from fastapi import FastAPI
+    from routers.metadata import create_metadata_router
+
+    app = FastAPI()
+    router = create_metadata_router(
+        get_repository_factory=lambda: None,
+        broadcast_manager=MagicMock(),
+    )
+    app.include_router(router)
+    return app
+
+
+def _make_metadata_repos(filepath: str) -> MagicMock:
+    repos = MagicMock()
+    track = MagicMock()
+    track.id = 1
+    track.filepath = filepath
+    track.format = "flac"
+    repos.tracks.get_by_id = MagicMock(return_value=track)
+    return repos
+
+
 class TestMetadata404DetailSanitisation:
     """FileNotFoundError caught in metadata endpoints must not leak the filepath."""
 
-    def _make_router_and_app(self):
-        """Build a minimal FastAPI app with just the metadata router."""
-        from fastapi import FastAPI
-        from routers.metadata import create_metadata_router
-
-        app = FastAPI()
-        router = create_metadata_router(
-            get_repository_factory=lambda: None,
-            broadcast_manager=MagicMock(),
-        )
-        app.include_router(router)
-        return app
-
-    def _make_repos(self, filepath: str) -> MagicMock:
-        repos = MagicMock()
-        track = MagicMock()
-        track.id = 1
-        track.filepath = filepath
-        track.format = "flac"
-        repos.tracks.get_by_id = MagicMock(return_value=track)
-        return repos
+    _make_router_and_app = staticmethod(_make_metadata_router_and_app)
+    _make_repos = staticmethod(_make_metadata_repos)
 
     def test_get_editable_fields_404_has_no_filepath(self):
         """GET /fields 404 detail must not embed the absolute filepath."""
@@ -175,3 +187,173 @@ class TestMetadata404DetailSanitisation:
         assert abs_path not in detail, (
             f"Absolute path leaked in 404 detail: {detail!r} (#3849)"
         )
+
+
+# ---------------------------------------------------------------------------
+# #4807: PathValidationError's own text names the resolved path and every
+# allowed directory. Four routes reflected str(e) verbatim into a 400 body --
+# a single bad request could enumerate the user's entire configured library
+# layout. Same disclosure class as #3849 above, at the PathValidationError/400
+# call sites rather than the FileNotFoundError/404 ones.
+# ---------------------------------------------------------------------------
+
+_BAIT_MESSAGE = (
+    "Path '/etc/shadow' is outside allowed directories. "
+    "Allowed directories: /home/alice/Music, /home/alice/Documents, /home/alice/Podcasts"
+)
+
+
+class TestPathValidationErrorRouteSanitisation:
+    """The four HTTP call sites must not reflect str(PathValidationError) at
+    all, regardless of what the exception's own message says -- proven here
+    with a deliberately maximal "bait" message (a resolved path plus a full
+    allowed-directories enumeration) standing in for whatever
+    validate_file_path/validate_user_chosen_directory actually raise today or
+    in the future."""
+
+    def test_metadata_get_fields_400_has_no_validation_detail(self):
+        from fastapi.testclient import TestClient
+        from security.path_security import PathValidationError
+
+        app = _make_metadata_router_and_app()
+        repos = _make_metadata_repos("/home/alice/private/music/secret.flac")
+
+        with (
+            patch("routers.metadata.require_repository_factory", return_value=repos),
+            patch("routers.metadata.validate_file_path", side_effect=PathValidationError(_BAIT_MESSAGE)),
+        ):
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.get("/api/metadata/tracks/1/fields")
+
+        assert response.status_code == 400
+        detail = response.json().get("detail", "")
+        assert "Allowed directories" not in detail
+        assert "/home/alice" not in detail
+        assert "/etc/shadow" not in detail
+
+    def test_metadata_get_track_400_has_no_validation_detail(self):
+        from fastapi.testclient import TestClient
+        from security.path_security import PathValidationError
+
+        app = _make_metadata_router_and_app()
+        repos = _make_metadata_repos("/home/alice/private/music/secret.flac")
+
+        with (
+            patch("routers.metadata.require_repository_factory", return_value=repos),
+            patch("routers.metadata.validate_file_path", side_effect=PathValidationError(_BAIT_MESSAGE)),
+        ):
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.get("/api/metadata/tracks/1")
+
+        assert response.status_code == 400
+        detail = response.json().get("detail", "")
+        assert "Allowed directories" not in detail
+        assert "/home/alice" not in detail
+
+    def test_metadata_update_track_400_has_no_validation_detail(self):
+        from fastapi.testclient import TestClient
+        from security.path_security import PathValidationError
+
+        app = _make_metadata_router_and_app()
+        repos = _make_metadata_repos("/home/alice/private/music/secret.flac")
+
+        with (
+            patch("routers.metadata.require_repository_factory", return_value=repos),
+            patch("routers.metadata.validate_file_path", side_effect=PathValidationError(_BAIT_MESSAGE)),
+        ):
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.put("/api/metadata/tracks/1", json={"title": "Test"})
+
+        assert response.status_code == 400
+        detail = response.json().get("detail", "")
+        assert "Allowed directories" not in detail
+        assert "/home/alice" not in detail
+
+    def test_settings_put_scan_folders_400_has_no_validation_detail(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from routers.settings import create_settings_router
+        from security.path_security import PathValidationError
+
+        app = FastAPI()
+        app.include_router(create_settings_router(lambda: MagicMock()))
+
+        with patch(
+            "routers.settings.validate_directory_list",
+            side_effect=PathValidationError(_BAIT_MESSAGE),
+        ):
+            with TestClient(app) as client:
+                response = client.put("/api/settings", json={"scan_folders": ["/etc"]})
+
+        assert response.status_code == 400
+        detail = response.json().get("detail", "")
+        assert "Allowed directories" not in detail
+        assert "/home/alice" not in detail
+
+    def test_settings_post_scan_folder_400_has_no_validation_detail(self):
+        """POST /api/settings/scan-folders {"folder": "/etc"} -- the issue's
+        own repro (#4807)."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from routers.settings import create_settings_router
+        from security.path_security import PathValidationError
+
+        app = FastAPI()
+        app.include_router(create_settings_router(lambda: MagicMock()))
+
+        with patch(
+            "routers.settings.validate_user_chosen_directory",
+            side_effect=PathValidationError(_BAIT_MESSAGE),
+        ):
+            with TestClient(app) as client:
+                response = client.post("/api/settings/scan-folders", json={"folder": "/etc"})
+
+        assert response.status_code == 400
+        detail = response.json().get("detail", "")
+        assert "Allowed directories" not in detail
+        assert "/home/alice" not in detail
+
+
+class TestValidateFilePathOwnMessage:
+    """Unit-level: validate_file_path's "outside allowed directories" branch
+    no longer enumerates every allowed directory in the exception it raises,
+    with the full detail (resolved path + every allowed dir) still available
+    server-side at DEBUG -- matching config/startup.py's existing
+    DEBUG-for-sensitive-paths convention (#3844/#4376) rather than losing the
+    detail outright."""
+
+    def test_raised_message_has_no_directory_enumeration(self, tmp_path, caplog):
+        from security.path_security import PathValidationError, validate_file_path
+
+        outside = tmp_path / "outside" / "secret.flac"
+        outside.parent.mkdir()
+        outside.write_text("x")
+        allowed = [tmp_path / "music"]
+        (tmp_path / "music").mkdir()
+
+        with pytest.raises(PathValidationError) as exc_info:
+            validate_file_path(str(outside), allowed_base_dirs=allowed)
+
+        msg = str(exc_info.value)
+        assert "Allowed directories" not in msg
+        assert str(allowed[0]) not in msg
+        # The existing shape sibling tests already pin (outside allowed
+        # directories) must survive.
+        assert "outside allowed directories" in msg.lower()
+
+    def test_full_detail_still_reaches_debug(self, tmp_path, caplog):
+        from security.path_security import PathValidationError, validate_file_path
+
+        outside = tmp_path / "outside" / "secret.flac"
+        outside.parent.mkdir()
+        outside.write_text("x")
+        allowed = [tmp_path / "music"]
+        (tmp_path / "music").mkdir()
+
+        with caplog.at_level("DEBUG", logger="security.path_security"):
+            with pytest.raises(PathValidationError):
+                validate_file_path(str(outside), allowed_base_dirs=allowed)
+
+        full_detail = " ".join(r.message for r in caplog.records)
+        assert "Allowed directories" in full_detail
+        assert str(allowed[0]) in full_detail

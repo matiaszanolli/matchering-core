@@ -315,8 +315,14 @@ def create_settings_router(
         if 'scan_folders' in payload and payload['scan_folders'] is not None:
             try:
                 payload['scan_folders'] = validate_directory_list(payload['scan_folders'])
-            except PathValidationError as e:
-                raise HTTPException(status_code=400, detail=str(e))
+            except PathValidationError:
+                # str(e) used to be reflected verbatim -- validate_file_path's
+                # variant of this exception names every allowed directory,
+                # i.e. the user's entire configured library layout (#4807).
+                # validate_directory_list's own validator already logs the
+                # rejection once (_logs_rejections); the client gets a fixed,
+                # generic detail regardless of which check failed.
+                raise HTTPException(status_code=400, detail="One or more scan folders failed validation")
 
         # Snapshot the previous list (if scan_folders is being written) so the
         # allowlist can be diffed against it after the write — additions get
@@ -356,8 +362,11 @@ def create_settings_router(
             raise HTTPException(status_code=400, detail="folder must be a non-empty path")
         try:
             validated = validate_user_chosen_directory(body.folder.strip())
-        except PathValidationError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+        except PathValidationError:
+            # str(e) used to be reflected verbatim (#4807). validate_user_chosen_directory
+            # already logs the rejection once (_logs_rejections); the client
+            # gets a fixed, generic detail regardless of which check failed.
+            raise HTTPException(status_code=400, detail="Invalid or inaccessible folder path")
         settings = await asyncio.to_thread(_repo().add_scan_folder, str(validated))
         # Register so validate_file_path accepts files under this folder
         register_allowed_directory(validated)
