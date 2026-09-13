@@ -18,14 +18,12 @@
     "@tanstack/react-virtual": "^3.13.13",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@types/uuid": "^10.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-infinite-scroll-component": "^6.1.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^6.30.4",
-    "typescript": "^5.9.3",
-    "uuid": "^14.0.0"
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "start": "vite",
