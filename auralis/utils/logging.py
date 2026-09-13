@@ -72,9 +72,21 @@ class Code:
 
 
 class ModuleError(Exception):
-    """Custom exception for module errors"""
-    def __init__(self, code: str) -> None:
+    """Custom exception for module errors.
+
+    `path`, when given, carries the filesystem path involved in the failure
+    as a structured attribute rather than interpolated into the message
+    string. FFmpeg/ffprobe raise sites used to embed the absolute path (and,
+    separately, raw subprocess stderr) directly into the exception's string
+    form (#4806) — nothing currently forwards `str(exc)` to an HTTP/WS
+    client, but a future "surface a more specific ModuleError message"
+    change would have started doing exactly that. A caller that needs the
+    path for its own DEBUG-level logging should read `.path`, not parse it
+    back out of `str(exc)`.
+    """
+    def __init__(self, code: str, path: str | None = None) -> None:
         self.code = code
+        self.path = path
         super().__init__(f"Module error: {code}")
 
 

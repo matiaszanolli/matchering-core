@@ -21,7 +21,13 @@ import soundfile as sf
 
 from ..utils.logging import Code, ModuleError, debug, info, warning
 from .formats import FFMPEG_FORMATS, SUPPORTED_FORMATS
-from .loaders import check_ffprobe, load_with_ffmpeg, load_with_soundfile, reject_protocol_path
+from .loaders import (
+    check_ffprobe,
+    load_with_ffmpeg,
+    load_with_soundfile,
+    redact_subprocess_output,
+    reject_protocol_path,
+)
 # check_ffmpeg is unused within this module's own logic (post-#4119, the
 # ffprobe guard uses check_ffprobe exclusively — see #4540) but is re-exported
 # so test_ffprobe_error_masking_4540.py can monkeypatch unified_loader.check_ffmpeg
@@ -66,16 +72,19 @@ def load_audio(
     """
     file_path = Path(file_path)
 
+    # Absolute path at DEBUG only (#4366) -- also covers every ModuleError
+    # raised below in this function: none of them repeat the path in their
+    # own string form, since it's already on record here (#4806).
     debug(f"Loading {file_type} audio file: {file_path}")
 
     # Validate file exists
     if not file_path.exists():
-        raise ModuleError(f"{Code.ERROR_FILE_NOT_FOUND}: {file_path}")
+        raise ModuleError(Code.ERROR_FILE_NOT_FOUND, path=str(file_path))
 
     # Check file size
     file_size = file_path.stat().st_size
     if file_size == 0:
-        raise ModuleError(f"{Code.ERROR_EMPTY_FILE}: {file_path}")
+        raise ModuleError(Code.ERROR_EMPTY_FILE, path=str(file_path))
 
     debug(f"File size: {file_size / (1024*1024):.2f} MB")
 
@@ -105,7 +114,8 @@ def load_audio(
     if duration > MAX_DURATION_SECONDS:
         raise ModuleError(
             f"{Code.ERROR_CORRUPTED}: Audio file exceeds maximum duration "
-            f"({duration:.0f}s > {MAX_DURATION_SECONDS}s): {file_path}"
+            f"({duration:.0f}s > {MAX_DURATION_SECONDS}s)",
+            path=str(file_path),
         )
     # Backstop for the same blind spot (#4875). The buffer is already resident
     # here, so this cannot prevent that allocation — but it still stops the
@@ -115,7 +125,7 @@ def load_audio(
     channels = audio_data.shape[1] if audio_data.ndim > 1 else 1
     detail = oversize_decode_detail(duration, sample_rate, channels)
     if detail:
-        raise ModuleError(f"{Code.ERROR_CORRUPTED}: {detail}: {file_path}")
+        raise ModuleError(f"{Code.ERROR_CORRUPTED}: {detail}", path=str(file_path))
 
     # Validate audio data
     audio_data, sample_rate = validate_audio(audio_data, sample_rate, file_type)
@@ -167,7 +177,8 @@ def get_audio_info(file_path: str | Path) -> dict[str, Any]:
     file_path = Path(file_path)
 
     if not file_path.exists():
-        raise ModuleError(f"{Code.ERROR_FILE_NOT_FOUND}: {file_path}")
+        debug(f"File not found: {file_path}")
+        raise ModuleError(Code.ERROR_FILE_NOT_FOUND, path=str(file_path))
 
     file_ext = file_path.suffix.lower()
     file_size = file_path.stat().st_size
@@ -242,7 +253,14 @@ def _get_info_with_ffprobe(file_path: Path) -> dict[str, Any]:
         )
 
         if result.returncode != 0:
-            raise ModuleError(f"FFprobe failed: {result.stderr}")
+            # Full raw stderr (build-config banner + echoed input path) at
+            # DEBUG only; the exception's string form carries just the last
+            # line, which is reliably the actual failure reason (#4806).
+            debug(f"FFprobe failed for {file_path}: {result.stderr}")
+            raise ModuleError(
+                f"FFprobe failed: {redact_subprocess_output(result.stderr, known_path=str(file_path))}",
+                path=str(file_path),
+            )
 
         probe_data = json.loads(result.stdout)
 

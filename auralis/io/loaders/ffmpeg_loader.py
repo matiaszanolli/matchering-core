@@ -51,8 +51,39 @@ def reject_protocol_path(file_path_str: str) -> None:
     filesystem path. Shared by both ffprobe/ffmpeg call sites (#4834)."""
     if _PROTOCOL_PREFIX_RE.match(file_path_str):
         raise ModuleError(
-            f"{Code.ERROR_UNSUPPORTED_FORMAT}: URL/protocol inputs are not allowed ({file_path_str})"
+            f"{Code.ERROR_UNSUPPORTED_FORMAT}: URL/protocol inputs are not allowed",
+            path=file_path_str,
         )
+
+
+_STDERR_TAIL_MAX_CHARS = 200
+
+
+def redact_subprocess_output(
+    raw: str | None, max_chars: int = _STDERR_TAIL_MAX_CHARS, known_path: str | None = None
+) -> str:
+    """Bound a subprocess's raw stderr before it reaches a ``ModuleError`` message.
+
+    FFmpeg/ffprobe stderr always opens with a multi-line build-config banner,
+    and the actual failure reason is reliably the last non-empty line — so
+    keep only that, bounded to *max_chars*. That last line commonly reads
+    ``<input>: <reason>`` (e.g. ``/home/user/Music/track.mp3: Invalid data
+    found when processing input``), i.e. FFmpeg's own error format puts the
+    echoed input path on the SAME line as the reason, not just in the banner
+    above (#4806) — a plain last-line truncation still leaks it. Pass
+    *known_path* (the exact string handed to FFmpeg/ffprobe as the input) to
+    strip it from the tail too. Shared by both the ffmpeg conversion failure
+    and the ffprobe non-zero-exit call sites.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return "(no output)"
+    if known_path:
+        text = text.replace(known_path, "<file>")
+    tail = text.splitlines()[-1].strip() or text.splitlines()[-1]
+    if len(tail) > max_chars:
+        tail = "…" + tail[-max_chars:]
+    return tail
 
 
 def _parse_ffmpeg_version(version_output: str) -> tuple[int, ...] | None:
@@ -300,7 +331,10 @@ def load_with_ffmpeg(
     # Ensure the input path is a regular file and not a URL/protocol
     file_path = Path(file_path)
     if not file_path.exists() or not file_path.is_file():
-        raise ModuleError(f"{Code.ERROR_FILE_NOT_FOUND}: {file_path}")
+        # Absolute path at DEBUG only, not in the exception's string form
+        # (#4806) -- it embeds the OS username + install layout.
+        debug(f"File not found: {file_path}")
+        raise ModuleError(Code.ERROR_FILE_NOT_FOUND, path=str(file_path))
     # Guard against ffmpeg protocol specifiers (http://, pipe:, concat:, data:, etc.)
     file_path_str = str(file_path)
     reject_protocol_path(file_path_str)
@@ -312,9 +346,11 @@ def load_with_ffmpeg(
     # Silently assuming 44100 Hz / 2 ch caused 48 kHz and other files to be
     # permanently resampled to the wrong rate (fixes #2495).
     if probe['sample_rate'] is None or probe['channels'] is None:
+        debug(f"Could not probe sample rate / channel count for: {file_path}")
         raise ModuleError(
-            f"{Code.ERROR_CORRUPTED}: Could not probe sample rate / channel count for "
-            f"'{file_path}'. FFprobe output may be malformed or the container unsupported."
+            f"{Code.ERROR_CORRUPTED}: Could not probe sample rate / channel count. "
+            f"FFprobe output may be malformed or the container unsupported.",
+            path=str(file_path),
         )
     source_sample_rate = probe['sample_rate']
     source_channels = probe['channels']
@@ -327,9 +363,11 @@ def load_with_ffmpeg(
     from auralis.io.loader import MAX_DURATION_SECONDS, oversize_decode_detail
     if expected_duration is not None:
         if expected_duration > MAX_DURATION_SECONDS:
+            debug(f"Duration cap exceeded for: {file_path}")
             raise ModuleError(
                 f"{Code.ERROR_FFMPEG_CONVERSION}: Audio file exceeds maximum duration "
-                f"({expected_duration:.0f}s > {MAX_DURATION_SECONDS}s): {file_path}"
+                f"({expected_duration:.0f}s > {MAX_DURATION_SECONDS}s)",
+                path=str(file_path),
             )
         # ffprobe already gave us sample_rate and channels above, so bound the
         # actual decoded size rather than trusting duration as a proxy (#4875).
@@ -337,19 +375,20 @@ def load_with_ffmpeg(
             expected_duration, source_sample_rate, source_channels
         )
         if detail:
-            raise ModuleError(
-                f"{Code.ERROR_FFMPEG_CONVERSION}: {detail}: {file_path}"
-            )
+            debug(f"Decoded-size cap exceeded for: {file_path}")
+            raise ModuleError(f"{Code.ERROR_FFMPEG_CONVERSION}: {detail}", path=str(file_path))
     else:
         # #4128: ffprobe returned no duration (true-VBR MP3 without Xing/VBRI).
         # Fall back to a file-size-based lower-bound estimate so an oversized
         # file is rejected before FFmpeg decodes it to a multi-hundred-MB temp WAV.
         min_duration = (file_path.stat().st_size * 8) / _MAX_PLAUSIBLE_BITRATE_BPS
         if min_duration > MAX_DURATION_SECONDS:
+            debug(f"Size-implied duration cap exceeded for: {file_path}")
             raise ModuleError(
                 f"{Code.ERROR_FFMPEG_CONVERSION}: Audio file exceeds maximum duration "
                 f"(size implies >= {min_duration:.0f}s at "
-                f"{_MAX_PLAUSIBLE_BITRATE_BPS // 1000} kbps > {MAX_DURATION_SECONDS}s): {file_path}"
+                f"{_MAX_PLAUSIBLE_BITRATE_BPS // 1000} kbps > {MAX_DURATION_SECONDS}s)",
+                path=str(file_path),
             )
 
     # Create temporary WAV file
@@ -421,7 +460,15 @@ def load_with_ffmpeg(
         )
 
         if result.returncode != 0:
-            raise ModuleError(f"{Code.ERROR_FFMPEG_CONVERSION}: {result.stderr}")
+            # Full raw stderr (build-config banner + the input path it always
+            # echoes) at DEBUG only; the exception's string form carries just
+            # the last line, which is reliably the actual failure reason (#4806).
+            debug(f"FFmpeg conversion failed for {file_path}: {result.stderr}")
+            raise ModuleError(
+                f"{Code.ERROR_FFMPEG_CONVERSION}: "
+                f"{redact_subprocess_output(result.stderr, known_path=str(file_path))}",
+                path=str(file_path),
+            )
 
         # Load the converted WAV file
         audio_data, sample_rate = load_with_soundfile(temp_wav)

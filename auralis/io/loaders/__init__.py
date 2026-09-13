@@ -8,7 +8,13 @@ Format-specific audio loading implementations
 :license: GPLv3, see LICENSE for more details.
 """
 
-from .ffmpeg_loader import check_ffmpeg, check_ffprobe, load_with_ffmpeg, reject_protocol_path
+from .ffmpeg_loader import (
+    check_ffmpeg,
+    check_ffprobe,
+    load_with_ffmpeg,
+    redact_subprocess_output,
+    reject_protocol_path,
+)
 from .soundfile_loader import load_with_soundfile
 
 __all__ = [
@@ -17,4 +23,5 @@ __all__ = [
     'check_ffmpeg',
     'check_ffprobe',
     'reject_protocol_path',
+    'redact_subprocess_output',
 ]
