@@ -12,6 +12,7 @@
  * WebSocket streaming: handled by usePlayEnhanced hook + WebSocketContext
  */
 
+import { APIRequestError } from '@/utils/apiRequest';
 import { toError } from '@/utils/errorGuards';
 
 // ============================================================================
@@ -331,23 +332,35 @@ export function classifyErrorSeverity(error: Error): ErrorSeverity {
 }
 
 /**
- * Determine if an error is retryable
+ * Determine if an error is retryable.
+ *
+ * #4467: this used to substring-match `error.message` for `network`, `503`,
+ * `502`, `429` and so on. That retried a non-transient 4xx whose detail text
+ * happened to contain one of those digit strings, and could not retry a
+ * transient failure whose text lacked the hardcoded words. Errors from
+ * `apiRequest` carry the real HTTP status, so eligibility now comes from that:
+ *
+ * - `0`   — apiRequest's code for a transport failure before any response
+ *           (timeout or network error): retryable.
+ * - `408` / `429` — request timeout / rate limited: retryable.
+ * - `5xx` — server-side, except `501 Not Implemented`, which will not change
+ *           on a retry.
+ * - anything else, including a 200 that failed the response-shape check:
+ *           not retryable.
+ *
+ * Only an error that did not come through apiRequest — and so has no status —
+ * falls back to message wording, restricted to transport-failure words.
  */
 export function isRetryableError(error: Error): boolean {
+  if (error instanceof APIRequestError) {
+    const status = error.statusCode;
+    if (status === 0 || status === 408 || status === 429) return true;
+    return status >= 500 && status !== 501;
+  }
+
   const message = error.message.toLowerCase();
-
-  // Retryable errors
-  const retryablePatterns = [
-    'network',
-    'timeout',
-    'connection',
-    'econnrefused',
-    '503',
-    '502',
-    '429', // Rate limit
-  ];
-
-  return retryablePatterns.some(pattern => message.includes(pattern));
+  return ['network', 'timeout', 'timed out', 'connection', 'econnrefused', 'failed to fetch']
+    .some((pattern) => message.includes(pattern));
 }
 
 /**
