@@ -296,3 +296,31 @@ class TestAnalyzeDoesNotMutateSysPath:
 
         assert result is None
         assert after == before, "sys.path must be unchanged after repeated calls (#4745)"
+
+# The recommendation/pre-warm paths re-check a DB filepath with
+# validate_file_path before any file I/O (#4817/#4818). These tests exercise
+# what happens *after* that check with fabricated paths like /music/x.flac, so
+# stand the check in with a pass-through; the guard itself is covered by the
+# tests below that restore the real validator.
+@pytest.fixture(autouse=True)
+def _accept_fabricated_track_paths(monkeypatch):
+    from pathlib import Path as _Path
+    monkeypatch.setattr("services.recommendation_service.validate_file_path", lambda filepath, *a, **k: _Path(filepath))
+
+
+
+@pytest.mark.asyncio
+async def test_a_stored_path_outside_allowed_directories_is_not_analysed(monkeypatch):
+    """#4817: POST /api/player/load feeds the DB filepath straight in; both
+    public methods funnel through _get_or_analyze, which now re-validates."""
+    from security.path_security import validate_file_path as real_validate
+
+    monkeypatch.setattr("services.recommendation_service.validate_file_path", real_validate)
+    service, conn_mgr = _make_service()
+
+    with patch("services.recommendation_service.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+        result = await service.get_recommendation_for_track(7, "/definitely/not/allowed/track.mp3")
+
+    assert result is None
+    mock_thread.assert_not_awaited()
+

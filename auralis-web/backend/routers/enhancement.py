@@ -34,6 +34,7 @@ from schemas import (
     EnhancementPresetLiteral,
     MasteringRecommendationResponse,
 )
+from security.path_security import PathValidationError, validate_file_path
 from websocket.outbound_messages import broadcast_typed
 
 from .dependencies import with_error_handling
@@ -184,6 +185,19 @@ async def _preprocess_upcoming_chunks(track_id: int, filepath: str, current_time
         intensity: Enhancement intensity (0.0-1.0)
     """
     try:
+        # #4818: filepath arrives from player state, i.e. the DB. A folder
+        # unregistered after indexing leaves the stored path stale, so re-check
+        # containment before any file I/O. This is a background task that
+        # nothing awaits, so a rejection skips quietly rather than raising.
+        try:
+            filepath = str(validate_file_path(str(filepath)))
+        except PathValidationError:
+            logger.debug(
+                f"Skipping chunk pre-processing for track {track_id}: "
+                "stored filepath failed validation"
+            )
+            return
+
         # Import here to avoid circular dependencies
         from core.chunked_processor import ChunkedAudioProcessor
 
@@ -575,6 +589,17 @@ async def get_mastering_recommendation(
     filepath = track.filepath
     if not filepath:
         raise HTTPException(status_code=400, detail=f"Track {track_id} has no filepath")
+
+    # #4817: re-check the DB-sourced path before any file I/O, as metadata.py
+    # does (#2302). Deliberately generic detail: PathValidationError's text
+    # names the resolved path and every allowed directory (#4807).
+    try:
+        filepath = str(validate_file_path(str(filepath)))
+    except PathValidationError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Track {track_id}'s file is not in an allowed location",
+        )
 
     # Return cached result if still valid — avoids re-running full audio
     # analysis (~1-5 s CPU) on repeated calls for the same track (#3865).

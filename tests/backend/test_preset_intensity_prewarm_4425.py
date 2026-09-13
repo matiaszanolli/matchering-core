@@ -19,6 +19,8 @@ assertions can run after it completes.
 
 import asyncio
 import sys
+
+import pytest
 import threading
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -210,3 +212,14 @@ class TestSetIntensityPrewarm:
 
         assert response.status_code == 200
         mock_ctor.assert_not_called()
+
+# The recommendation/pre-warm paths re-check a DB filepath with
+# validate_file_path before any file I/O (#4817/#4818). These tests exercise
+# what happens *after* that check with fabricated paths like /music/x.flac, so
+# stand the check in with a pass-through; the guard itself is covered by the
+# tests below that restore the real validator.
+@pytest.fixture(autouse=True)
+def _accept_fabricated_track_paths(monkeypatch):
+    from pathlib import Path as _Path
+    monkeypatch.setattr("routers.enhancement.validate_file_path", lambda filepath, *a, **k: _Path(filepath))
+

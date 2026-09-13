@@ -23,6 +23,8 @@ of firing-and-forgetting it, so assertions can run after it completes.
 
 import asyncio
 import sys
+
+import pytest
 import threading
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -187,3 +189,36 @@ class TestPrewarmProcessorIsAlwaysClosed:
             client.post("/api/player/enhancement/toggle", json={"enabled": True})
 
         mock_processor.close.assert_called_once()
+
+# The recommendation/pre-warm paths re-check a DB filepath with
+# validate_file_path before any file I/O (#4817/#4818). These tests exercise
+# what happens *after* that check with fabricated paths like /music/x.flac, so
+# stand the check in with a pass-through; the guard itself is covered by the
+# tests below that restore the real validator.
+@pytest.fixture(autouse=True)
+def _accept_fabricated_track_paths(monkeypatch):
+    from pathlib import Path as _Path
+    monkeypatch.setattr("routers.enhancement.validate_file_path", lambda filepath, *a, **k: _Path(filepath))
+
+
+
+def test_prewarm_skips_a_stored_path_outside_allowed_directories(monkeypatch):
+    """#4818: the background task re-validates the player-state filepath and
+    short-circuits before probing or constructing a processor (WIRING check)."""
+    from security.path_security import validate_file_path as real_validate
+
+    monkeypatch.setattr("routers.enhancement.validate_file_path", real_validate)
+    settings = {"enabled": False, "preset": "adaptive", "intensity": 1.0}
+    client = _build_client(
+        settings, _make_playing_state_manager("/definitely/not/allowed/track.m4a")
+    )
+
+    with _run_prewarm_synchronously(), \
+         patch("auralis.io.unified_loader.get_audio_info") as probe, \
+         patch("core.chunked_processor.ChunkedAudioProcessor") as ctor:
+        response = client.post("/api/player/enhancement/toggle", json={"enabled": True})
+
+    assert response.status_code == 200
+    probe.assert_not_called()
+    ctor.assert_not_called()
+

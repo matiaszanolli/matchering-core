@@ -301,6 +301,24 @@ class TestGetMasteringRecommendation:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
+    def test_rejects_a_stored_path_outside_allowed_directories(self, client, repos, monkeypatch):
+        """#4817: the DB filepath is re-validated before any file I/O, and the
+        400 does not echo the path or the allowed-directory list (#4807)."""
+        from unittest.mock import Mock, patch
+        from security.path_security import validate_file_path as real_validate
+
+        monkeypatch.setattr("routers.enhancement.validate_file_path", real_validate)
+        track = Mock()
+        track.filepath = "/definitely/not/an/allowed/dir/song.flac"
+        repos.tracks.get_by_id.return_value = track
+
+        with patch("core.chunked_processor.ChunkedAudioProcessor") as MockProc:
+            response = client.get("/api/player/mastering/recommendation/1")
+
+        assert response.status_code == 400
+        assert "/definitely" not in response.json()["detail"]
+        MockProc.assert_not_called()
+
     def test_resolves_filepath_from_db(self, client, repos):
         """Call with valid track_id → filepath resolved from DB, not query param"""
         from unittest.mock import Mock, patch
@@ -514,3 +532,14 @@ class TestEnhancementIntegration:
             response = client.post("/api/player/enhancement/preset", json={"preset": preset})
             assert response.status_code == 200
             assert response.json()["settings"]["preset"] == preset
+
+# The recommendation/pre-warm paths re-check a DB filepath with
+# validate_file_path before any file I/O (#4817/#4818). These tests exercise
+# what happens *after* that check with fabricated paths like /music/x.flac, so
+# stand the check in with a pass-through; the guard itself is covered by the
+# tests below that restore the real validator.
+@pytest.fixture(autouse=True)
+def _accept_fabricated_track_paths(monkeypatch):
+    from pathlib import Path as _Path
+    monkeypatch.setattr("routers.enhancement.validate_file_path", lambda filepath, *a, **k: _Path(filepath))
+

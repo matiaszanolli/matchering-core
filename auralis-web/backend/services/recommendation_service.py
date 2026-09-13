@@ -14,6 +14,7 @@ from typing import Any, Protocol, cast
 
 from cache import StreamlinedCacheManager, streamlined_cache_manager
 from core import audio_stream_controller as _asc
+from security.path_security import PathValidationError, validate_file_path
 from websocket.outbound_messages import MasteringRecommendationPayload, broadcast_typed
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,16 @@ class RecommendationService:
         confidence_threshold: float,
     ) -> dict[str, Any] | None:
         """Return a cached recommendation or run the bounded analysis."""
+        # #4817: POST /api/player/load schedules this with the DB filepath on
+        # every load, so this is the reachable path, not the REST endpoint.
+        # Both public methods funnel through here; re-check before any I/O.
+        try:
+            track_path = str(validate_file_path(str(track_path)))
+        except PathValidationError:
+            logger.debug(
+                f"Not analysing track {track_id}: stored filepath failed validation"
+            )
+            return None
         cached = self.cache_manager.get_mastering_recommendation(
             track_id, confidence_threshold
         )
