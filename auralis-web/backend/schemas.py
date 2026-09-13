@@ -433,8 +433,11 @@ QueueIndexList = Annotated[list[QueueIndex], Field(max_length=MAX_TRACK_ID_LIST)
 
 class HealthResponse(BaseModel):
     """Response model for GET /api/health."""
-    status: str = Field(description="Service status string (always 'healthy')")
-    auralis_available: bool = Field(description="True when the Auralis audio engine is loaded")
+    status: str = Field(description="Liveness: always 'healthy' while the process serves requests")
+    auralis_available: bool = Field(
+        description="True only when the engine imported AND its library database "
+                    "initialised; false after a failed or rolled-back startup (#4684)"
+    )
 
 
 class VersionInfoResponse(BaseModel):

@@ -79,6 +79,16 @@ HAS_PROCESSING = True
 HAS_STREAMLINED_CACHE = True
 HAS_SIMILARITY = True
 
+# #4684: HAS_AURALIS was the one flag #3534 left as a bare literal, so the
+# demo-mode branch it gates in startup could never run. Probe it like the
+# others. Note this only answers "is the engine importable"; whether it came up
+# is a runtime question /api/health now answers from the live component.
+try:
+    import auralis as _auralis_probe  # noqa: F401
+except ImportError:
+    HAS_AURALIS = False
+    logger.warning("⚠️  Auralis engine not available")
+
 # Import core components for router setup
 ProcessingEngine: Any = None
 ChunkedAudioProcessor: Any = None
