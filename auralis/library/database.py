@@ -95,7 +95,13 @@ class LibraryDatabase:
             Exception: If the schema migration fails — the caller must not
                 proceed against a half-migrated database.
         """
-        if database_path is None:
+        # #4824: harden ~/.auralis whenever the database lives at the default
+        # location, not only when the caller omitted the path. fetch_artwork.py
+        # passes DEFAULT_DB_PATH explicitly, so it skipped this block and the
+        # directory was created later by migration_lock's plain mkdir at the
+        # process umask (typically 0o755). A caller-chosen location elsewhere
+        # is deliberately left alone — that directory is not ours to chmod.
+        if database_path is None or os.path.realpath(database_path) == os.path.realpath(DEFAULT_DB_PATH):
             DEFAULT_DB_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             # mkdir(mode=) is ignored when the dir already exists, so re-restrict
             # it to owner-only even for a pre-existing ~/.auralis (#4347).
@@ -103,6 +109,7 @@ class LibraryDatabase:
                 os.chmod(DEFAULT_DB_PATH.parent, 0o700)
             except OSError:
                 pass
+        if database_path is None:
             database_path = str(DEFAULT_DB_PATH)
 
         self.database_path = database_path
