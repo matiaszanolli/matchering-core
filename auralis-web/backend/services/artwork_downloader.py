@@ -50,6 +50,15 @@ def _detect_image_extension(data: bytes, default: str = "jpg") -> str:
     return default
 
 
+# #4686: aiohttp's default ClientTimeout is total=300s, and the downloader
+# walks up to four remote calls per album in sequence, so one host that accepts
+# the connection and never answers could hold a worker for ~20 minutes with
+# nothing logged. Bound every request, and bound the album's whole chain too, so
+# adding another fallback source cannot multiply the worst case again.
+_ARTWORK_REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15, connect=5)
+_ARTWORK_LOOKUP_BUDGET_S = 45.0
+
+
 class ArtworkDownloader:
     """
     Service for downloading album artwork from online sources.
@@ -94,7 +103,8 @@ class ArtworkDownloader:
         """Return the shared HTTP session, creating it on first use."""
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(limit=4, ttl_dns_cache=300)
+                connector=aiohttp.TCPConnector(limit=4, ttl_dns_cache=300),
+                timeout=_ARTWORK_REQUEST_TIMEOUT,
             )
         return self._session
 
@@ -125,24 +135,37 @@ class ArtworkDownloader:
             str: Path to downloaded artwork file, or None if not found
         """
         try:
-            # Try MusicBrainz first (best quality, open source)
-            artwork_path = await self._try_musicbrainz(artist, album, album_id)
-            if artwork_path:
-                logger.info(f"Downloaded artwork from MusicBrainz for '{sanitize_log_value(album)}' by '{sanitize_log_value(artist)}'")
-                return artwork_path
-
-            # Fallback to iTunes
-            artwork_path = await self._try_itunes(artist, album, album_id)
-            if artwork_path:
-                logger.info(f"Downloaded artwork from iTunes for '{sanitize_log_value(album)}' by '{sanitize_log_value(artist)}'")
-                return artwork_path
-
-            logger.warning(f"No artwork found for '{sanitize_log_value(album)}' by '{sanitize_log_value(artist)}'")
+            return await asyncio.wait_for(
+                self._lookup(artist, album, album_id),
+                timeout=_ARTWORK_LOOKUP_BUDGET_S,
+            )
+        except TimeoutError:
+            logger.warning(
+                f"Artwork lookup for '{sanitize_log_value(album)}' by "
+                f"'{sanitize_log_value(artist)}' timed out after "
+                f"{_ARTWORK_LOOKUP_BUDGET_S:.0f}s"
+            )
             return None
-
         except Exception as e:
             logger.error(f"Failed to download artwork: {e}")
             return None
+
+    async def _lookup(self, artist: str, album: str, album_id: int) -> str | None:
+        """Walk the source chain; bounded as a whole by download_artwork."""
+        # Try MusicBrainz first (best quality, open source)
+        artwork_path = await self._try_musicbrainz(artist, album, album_id)
+        if artwork_path:
+            logger.info(f"Downloaded artwork from MusicBrainz for '{sanitize_log_value(album)}' by '{sanitize_log_value(artist)}'")
+            return artwork_path
+
+        # Fallback to iTunes
+        artwork_path = await self._try_itunes(artist, album, album_id)
+        if artwork_path:
+            logger.info(f"Downloaded artwork from iTunes for '{sanitize_log_value(album)}' by '{sanitize_log_value(artist)}'")
+            return artwork_path
+
+        logger.warning(f"No artwork found for '{sanitize_log_value(album)}' by '{sanitize_log_value(artist)}'")
+        return None
 
     async def _try_musicbrainz(
         self,
@@ -209,6 +232,11 @@ class ArtworkDownloader:
                     return None
                 return await self._save_artwork(artwork_data, album_id, "jpg")
 
+        except TimeoutError:
+            # #4686: hit _ARTWORK_REQUEST_TIMEOUT. WARNING, not the debug level
+            # other lookup failures use, so a black-holing host is visible.
+            logger.warning("MusicBrainz artwork request timed out")
+            return None
         except Exception as e:
             logger.debug(f"MusicBrainz lookup failed: {e}")
             return None
@@ -283,6 +311,11 @@ class ArtworkDownloader:
                     return None
                 return await self._save_artwork(artwork_data, album_id, "jpg")
 
+        except TimeoutError:
+            # #4686: hit _ARTWORK_REQUEST_TIMEOUT. WARNING, not the debug level
+            # other lookup failures use, so a black-holing host is visible.
+            logger.warning("iTunes artwork request timed out")
+            return None
         except Exception as e:
             logger.debug(f"iTunes lookup failed: {e}")
             return None
