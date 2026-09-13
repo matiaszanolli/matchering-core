@@ -23,12 +23,39 @@ from fastapi.staticfiles import StaticFiles
 from starlette import status
 from starlette.routing import Match
 
-# NOTE: logging.basicConfig was removed (#3537 / BE-NEW-79). uvicorn.run()
-# installs its own logging configuration with handlers on the root logger,
-# and basicConfig added a second handler so every line emitted by a
-# `logger = logging.getLogger(__name__)` propagated to both — duplicate log
-# lines in stdout and in the Electron-captured log file. Letting Uvicorn
-# own the root logger config eliminates the duplication.
+# NOTE: logging.basicConfig was removed here once (#3537 / BE-NEW-79), then
+# reinstated (#4774). The #3537 comment that used to sit here claimed
+# uvicorn.run() "installs its own logging configuration with handlers on the
+# root logger" — checked against uvicorn's actual LOGGING_CONFIG and that's
+# not what it does: it only ever configures the "uvicorn"/"uvicorn.access"
+# loggers (both propagate=False) and "uvicorn.error" (propagate=True but no
+# handler of its own, so it stops at "uvicorn"'s handler). None of the three
+# ever reach the root logger, configured or not.
+#
+# Meanwhile every module logger in this codebase (`logging.getLogger(__name__)`
+# — this one, config/routes.py's, etc.) has no handler of its own and
+# propagates straight to that root logger. With no basicConfig, root has no
+# handler either, so `logging.lastResort` (level WARNING) silently swallowed
+# every INFO/DEBUG line for the process's entire lifetime — not just before
+# uvicorn.run() as first suspected, but always, including all 20
+# router-registration confirmations in config/routes.py.
+#
+# Reinstating basicConfig does not reopen #3537: that bug was uvicorn's OWN
+# lines being handled twice, and uvicorn's loggers never reach root either
+# way, per the above — verified with a live `python main.py` run showing no
+# duplicate "Uvicorn running on ..."-style lines after this change.
+#
+# Duplicated rather than reused from config.app.is_dev_mode(): that import
+# pulls in `auralis.version`, and this must run before the sys.path bootstrap
+# just below adds the frozen/Electron auralis_parent to sys.path — importing
+# it here would work in a normal dev venv (auralis is pip-installed there)
+# and break the PyInstaller-frozen production case.
+_dev_mode = "--dev" in sys.argv or os.environ.get("AURALIS_DEV_MODE", "").lower() in ("1", "true", "yes")
+logging.basicConfig(
+    level=logging.DEBUG if _dev_mode else logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 # Add parent directory to path for Auralis imports
