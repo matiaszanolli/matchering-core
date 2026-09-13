@@ -62,7 +62,10 @@ class AdaptiveConfig:
 
     # Psychoacoustic modeling
     enable_psychoacoustic_eq: bool = True
-    critical_bands: int = 26  # Number of critical bands for analysis
+    # No `critical_bands` knob (#4613): the EQ's band layout is the fixed
+    # 25-band Bark-scale table in auralis/dsp/eq/critical_bands.py, which
+    # PsychoacousticEQ builds with no arguments. A validated-but-ignored field
+    # (default 26, range 8-64) used to sit here and looked tunable.
 
     def __post_init__(self) -> None:
         assert 0.0 <= self.adaptation_strength <= 1.0, "Adaptation strength must be 0-1"
@@ -70,7 +73,6 @@ class AdaptiveConfig:
         assert 5.0 <= self.chunk_size_ms <= 100.0, "Chunk size must be 5-100ms"
         assert 10.0 <= self.latency_budget_ms <= 100.0, "Latency budget must be 10-100ms"
         assert 0.0 <= self.learning_rate <= 1.0, "Learning rate must be 0-1"
-        assert 8 <= self.critical_bands <= 64, "Critical bands must be 8-64"
 
 
 @dataclass
