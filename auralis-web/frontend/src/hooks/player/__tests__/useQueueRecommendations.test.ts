@@ -5,7 +5,7 @@
  * Covers: calculations, memoization, filtering
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useQueueRecommendations } from '../useQueueRecommendations';
 import type { Track } from '@/types/domain';
@@ -388,5 +388,50 @@ describe('useQueueRecommendations', () => {
 
     expect(result.current.forYouRecommendations.length).toBeGreaterThan(0);
     expect(result.current.discoveryPlaylist.length).toBeGreaterThan(0);
+  });
+});
+
+describe('useQueueRecommendations oversized-queue warning (#4459)', () => {
+  const bigQueue: Track[] = Array.from({ length: 1001 }, (_, i) => ({
+    id: i + 1,
+    title: `Song ${i + 1}`,
+    artist: 'Artist',
+    album: 'Album',
+    duration: 200,
+  })) as Track[];
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('warns once per hook instance in DEV, not on every render', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { rerender } = renderHook(() => useQueueRecommendations(bigQueue, null, []));
+    rerender();
+    rerender();
+
+    const hits = warn.mock.calls.filter((c) => String(c[0]).includes('useQueueRecommendations'));
+    expect(hits).toHaveLength(1);
+  });
+
+  it('does not warn outside DEV', () => {
+    vi.stubEnv('DEV', false);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    renderHook(() => useQueueRecommendations(bigQueue, null, []));
+
+    const hits = warn.mock.calls.filter((c) => String(c[0]).includes('useQueueRecommendations'));
+    expect(hits).toHaveLength(0);
+  });
+
+  it('does not warn for a queue at the limit', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    renderHook(() => useQueueRecommendations(bigQueue.slice(0, 1000), null, []));
+
+    const hits = warn.mock.calls.filter((c) => String(c[0]).includes('useQueueRecommendations'));
+    expect(hits).toHaveLength(0);
   });
 });

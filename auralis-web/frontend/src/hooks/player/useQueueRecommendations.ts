@@ -28,7 +28,7 @@
  * @module hooks/player/useQueueRecommendations
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { QueueRecommender, type TrackRecommendation } from '@/utils/queue/queue_recommender';
 import type { Track, QueueTrack } from '@/types/domain';
 
@@ -119,8 +119,13 @@ export function useQueueRecommendations(
   currentTrack: Track | QueueTrack | null,
   availableTracks: Track[]
 ): QueueRecommendationsActions {
-  // Guard: Warn if queue exceeds safe size
-  if (queue.length > 1000) {
+  // Guard: warn once per hook instance, DEV only — the same guard its siblings
+  // useQueueStatistics (#3974) and useQueueSearch (#4194) got. This third
+  // sibling was missed, so it warned on every render and in production
+  // (#4459). Per-instance rather than module-level so HMR and tests reset.
+  const _warnedRef = useRef(false);
+  if (import.meta.env.DEV && queue.length > 1000 && !_warnedRef.current) {
+    _warnedRef.current = true;
     console.warn(
       `⚠️ useQueueRecommendations: Queue size (${queue.length}) exceeds safe limit (1000). ` +
       `This hook is designed for playback queues only (100-500 tracks), not entire libraries. ` +
