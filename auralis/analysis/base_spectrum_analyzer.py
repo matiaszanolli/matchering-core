@@ -225,56 +225,6 @@ class BaseSpectrumAnalyzer(ABC):
         # Reset smoothing buffer
         self.reset_smoothing()
 
-    def _a_weighting_curve(self, frequencies: np.ndarray) -> np.ndarray:
-        """
-        Calculate A-weighting curve (backward compatibility wrapper)
-
-        Args:
-            frequencies: Frequency array in Hz
-
-        Returns:
-            A-weighting curve in dB
-        """
-        return SpectrumOperations.compute_a_weighting(frequencies)
-
-    def _c_weighting_curve(self, frequencies: np.ndarray) -> np.ndarray:
-        """
-        Calculate C-weighting curve (backward compatibility wrapper)
-
-        Args:
-            frequencies: Frequency array in Hz
-
-        Returns:
-            C-weighting curve in dB
-        """
-        return SpectrumOperations.compute_c_weighting(frequencies)
-
-    def _map_to_bands(self, freqs: np.ndarray, magnitude: np.ndarray) -> np.ndarray:
-        """
-        Map FFT bins to frequency bands (backward compatibility wrapper)
-
-        Args:
-            freqs: Frequency array from FFT
-            magnitude: Magnitude spectrum from FFT
-
-        Returns:
-            Spectrum mapped to frequency bands (in dB)
-        """
-        return SpectrumOperations.map_to_bands(freqs, magnitude, self.frequency_bins, self.settings.sample_rate)
-
-    def _calculate_rolloff(self, spectrum: np.ndarray, rolloff_threshold: float = 0.85) -> float:
-        """
-        Calculate spectral rolloff frequency (backward compatibility wrapper)
-
-        Args:
-            spectrum: Spectrum magnitude values (linear or dB)
-            rolloff_threshold: Energy percentage threshold (0-1, default 85%)
-
-        Returns:
-            Spectral rolloff frequency in Hz
-        """
-        return SpectrumOperations.calculate_spectral_rolloff(self.frequency_bins, spectrum, rolloff_threshold)
-
 
 class SpectrumAnalyzer(BaseSpectrumAnalyzer):
     """Spectrum analyzer with real-time and file analysis capabilities"""

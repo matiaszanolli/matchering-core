@@ -14,6 +14,7 @@ from auralis.analysis.quality.quality_metrics import QualityMetrics
 
 # Import analysis modules
 from auralis.analysis.base_spectrum_analyzer import SpectrumAnalyzer, SpectrumSettings
+from auralis.analysis.spectrum_operations import SpectrumOperations
 
 
 class TestSpectrumAnalyzerSimple:
@@ -72,30 +73,30 @@ class TestSpectrumAnalyzerSimple:
     def test_a_weighting_curve(self):
         """Test A-weighting curve calculation."""
         frequencies = np.array([100, 1000, 10000])
-        # Call protected method for coverage
-        weights = self.analyzer._a_weighting_curve(frequencies)
+        weights = SpectrumOperations.compute_a_weighting(frequencies)
         assert len(weights) == len(frequencies)
 
     def test_c_weighting_curve(self):
         """Test C-weighting curve calculation."""
         frequencies = np.array([100, 1000, 10000])
-        # Call protected method for coverage
-        weights = self.analyzer._c_weighting_curve(frequencies)
+        weights = SpectrumOperations.compute_c_weighting(frequencies)
         assert len(weights) == len(frequencies)
 
     def test_map_to_bands(self):
         """Test frequency mapping to bands."""
         freqs = np.array([100, 1000, 10000])
         magnitude = np.array([0.1, 0.5, 0.2])
-        # Call protected method for coverage
-        bands = self.analyzer._map_to_bands(freqs, magnitude)
+        bands = SpectrumOperations.map_to_bands(
+            freqs, magnitude, self.analyzer.frequency_bins, self.analyzer.settings.sample_rate
+        )
         assert len(bands) > 0
 
     def test_calculate_rolloff(self):
         """Test spectral rolloff calculation."""
         spectrum = np.array([0.1, 0.5, 0.8, 0.3, 0.1])
-        # Call protected method for coverage
-        rolloff = self.analyzer._calculate_rolloff(spectrum)
+        rolloff = SpectrumOperations.calculate_spectral_rolloff(
+            self.analyzer.frequency_bins, spectrum, 0.85
+        )
         assert isinstance(rolloff, float)
 
 
