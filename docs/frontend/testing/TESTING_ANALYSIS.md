@@ -13,7 +13,7 @@ The Auralis web frontend is a modern React + TypeScript + Material-UI applicatio
 ### Root Configuration Files
 - **`package.json`** (v1.0.0): Contains dependencies but NO test scripts or testing libraries
 - **`vite.config.ts`**: Vite build configuration (React plugin, port 3000, sourcemap disabled)
-- **`jsconfig.json`**: Path aliases configured (baseUrl: "src")
+- **`tsconfig.json`**: Path aliases configured (`@/*` → `./src/*`). The CRA-era `jsconfig.json` that stood beside it declared contradictory settings and was deleted in #4589.
 - **`index.html`**: Standard entry point (no test attributes added)
 
 ### Source Directory Structure
