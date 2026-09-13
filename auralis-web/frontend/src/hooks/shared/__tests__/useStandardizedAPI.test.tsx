@@ -17,13 +17,17 @@
  * @license GPLv3, see LICENSE for more details
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@/test/mocks/server';
 import { AllProviders } from '@/test/test-utils';
-import { useCacheStats, useCacheHealth } from '../useStandardizedAPI';
+import {
+  useCacheStats,
+  useCacheHealth,
+  CACHE_STATS_REFRESH_INTERVAL_MS,
+} from '../useStandardizedAPI';
 import { mockCacheStats } from '@/components/shared/__tests__/test-utils';
 
 const mockCacheHealth = {
@@ -131,5 +135,83 @@ describe('useCacheStats / useCacheHealth (#4693)', () => {
       expect(result.current.isHealthy).toBe(false);
       expect(result.current.healthStatus).toBe('critical');
     });
+  });
+});
+
+// #4486: the hooks own the dashboards' auto-refresh, but the only component
+// test that could have covered it mocks the hooks wholesale (and is skipped,
+// #4264). Drive the real hooks against MSW and count requests instead.
+//
+// Deliberately no `waitFor` here: under vitest's fake timers Testing Library
+// mis-detects Jest and calls a `jest.advanceTimersByTime` that does not exist.
+// `advanceUntil` steps the fake clock itself, flushing React between steps.
+describe('cache telemetry polling (#4486)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function countingHandler(path: string, body: unknown) {
+    const hits = { count: 0 };
+    server.use(
+      http.get(path, () => {
+        hits.count += 1;
+        return HttpResponse.json(body);
+      })
+    );
+    return hits;
+  }
+
+  async function advanceUntil(done: () => boolean, maxMs: number, stepMs = 25) {
+    for (let elapsed = 0; elapsed < maxMs && !done(); elapsed += stepMs) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(stepMs);
+      });
+    }
+  }
+
+  async function advance(ms: number, stepMs = 25) {
+    for (let elapsed = 0; elapsed < ms; elapsed += stepMs) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(stepMs);
+      });
+    }
+  }
+
+  it('useCacheStats refetches on CACHE_STATS_REFRESH_INTERVAL_MS and stops after unmount', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const hits = countingHandler('/api/cache/stats', mockCacheStats);
+
+    const { result, unmount } = renderHook(() => useCacheStats(), { wrapper: AllProviders });
+    await advanceUntil(() => result.current.data !== null, 1000);
+    expect(result.current.data).not.toBeNull();
+    const afterInitial = hits.count;
+
+    await advanceUntil(() => hits.count > afterInitial, CACHE_STATS_REFRESH_INTERVAL_MS + 1000);
+    expect(hits.count).toBeGreaterThan(afterInitial);
+
+    unmount();
+    const atUnmount = hits.count;
+    await advance(CACHE_STATS_REFRESH_INTERVAL_MS * 3, 250);
+    expect(hits.count).toBe(atUnmount);
+  });
+
+  it('useCacheHealth polls on the interval it is given, not the default', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const hits = countingHandler('/api/cache/health', mockCacheHealth);
+
+    const { result, unmount } = renderHook(() => useCacheHealth(1000), { wrapper: AllProviders });
+    await advanceUntil(() => result.current.data !== null, 1000);
+    expect(result.current.data).not.toBeNull();
+    const afterInitial = hits.count;
+
+    // Well short of the 10 s default, so a refetch here can only come from
+    // the custom interval being honoured.
+    await advanceUntil(() => hits.count > afterInitial, 2000);
+    expect(hits.count).toBeGreaterThan(afterInitial);
+
+    unmount();
+    const atUnmount = hits.count;
+    await advance(5000, 250);
+    expect(hits.count).toBe(atUnmount);
   });
 });
