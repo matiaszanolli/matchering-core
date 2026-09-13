@@ -11,9 +11,9 @@
  * @license GPLv3
  */
 
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+const { spawn } = require('node:child_process');
+const path = require('node:path');
+const fs = require('node:fs');
 
 class PackageManager {
   constructor() {

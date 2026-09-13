@@ -19,10 +19,10 @@
  *   pnpm run test:memory:failsafe -- --max-heap 1024
  */
 
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
 
 // Configuration
 const config = {

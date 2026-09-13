@@ -11,8 +11,8 @@
  * duplication does not come back.
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, resolve } from 'path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import { isMacPlatform } from '../keyboardShortcutsService';
 

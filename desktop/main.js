@@ -1,9 +1,9 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log/main');
-const { spawn, exec } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+const { spawn, exec } = require('node:child_process');
+const path = require('node:path');
+const fs = require('node:fs');
 const { isSafeExternalUrl, isAllowedAppNavigation } = require('./url-safety');
 const { buildBackendEnv } = require('./backend-env');
 
@@ -295,7 +295,7 @@ class AuralisApp {
 
     // Try to ping the health endpoint
     try {
-      const http = require('http');
+      const http = require('node:http');
       const options = {
         hostname: 'localhost',
         port: 8765,
