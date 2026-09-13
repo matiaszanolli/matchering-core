@@ -6,7 +6,8 @@
  */
 
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@/test/test-utils';
+import userEvent from '@testing-library/user-event';
+import { render, screen } from '@/test/test-utils';
 import ArtistDetailView from '../Details/ArtistDetailView';
 
 // Mock the data hook — this is the sole data source for the component
@@ -140,52 +141,58 @@ describe('ArtistDetailView', () => {
   });
 
   describe('Callbacks', () => {
-    it('calls onBack when back button clicked', () => {
+    it('calls onBack when back button clicked', async () => {
+      const user = userEvent.setup();
       mockUseArtistDetailsData.mockReturnValue({ artist: mockArtist, loading: false, error: null });
       const onBack = vi.fn();
       render(<ArtistDetailView artistId={1} onBack={onBack} />);
-      fireEvent.click(screen.getByTestId('back-btn'));
+      await user.click(screen.getByTestId('back-btn'));
       expect(onBack).toHaveBeenCalledOnce();
     });
 
-    it('plays the first track on Play All', () => {
+    it('plays the first track on Play All', async () => {
+      const user = userEvent.setup();
       mockUseArtistDetailsData.mockReturnValue({ artist: mockArtist, loading: false, error: null });
       render(<ArtistDetailView artistId={1} />);
-      fireEvent.click(screen.getByTestId('play-all-btn'));
+      await user.click(screen.getByTestId('play-all-btn'));
       expect(mockPlayTrack).toHaveBeenCalledWith(mockArtist.tracks[0]);
     });
 
-    it('plays a track on Shuffle', () => {
+    it('plays a track on Shuffle', async () => {
+      const user = userEvent.setup();
       mockUseArtistDetailsData.mockReturnValue({ artist: mockArtist, loading: false, error: null });
       render(<ArtistDetailView artistId={1} />);
-      fireEvent.click(screen.getByTestId('shuffle-btn'));
+      await user.click(screen.getByTestId('shuffle-btn'));
       expect(mockPlayTrack).toHaveBeenCalledOnce();
       // The argument should be one of the tracks
       const calledWith = mockPlayTrack.mock.calls[0][0];
       expect(mockArtist.tracks).toContainEqual(calledWith);
     });
 
-    it('calls onAlbumClick when album is clicked', () => {
+    it('calls onAlbumClick when album is clicked', async () => {
+      const user = userEvent.setup();
       mockUseArtistDetailsData.mockReturnValue({ artist: mockArtist, loading: false, error: null });
       const onAlbumClick = vi.fn();
       render(<ArtistDetailView artistId={1} onAlbumClick={onAlbumClick} />);
-      fireEvent.click(screen.getByTestId('album-10'));
+      await user.click(screen.getByTestId('album-10'));
       expect(onAlbumClick).toHaveBeenCalledWith(10);
     });
 
-    it('plays the track when a track is clicked', () => {
+    it('plays the track when a track is clicked', async () => {
+      const user = userEvent.setup();
       mockUseArtistDetailsData.mockReturnValue({ artist: mockArtist, loading: false, error: null });
       render(<ArtistDetailView artistId={1} />);
-      fireEvent.click(screen.getByTestId('track-101'));
+      await user.click(screen.getByTestId('track-101'));
       expect(mockPlayTrack).toHaveBeenCalledWith(mockArtist.tracks[1]);
     });
 
-    it('does not crash when optional callbacks are omitted', () => {
+    it('does not crash when optional callbacks are omitted', async () => {
+      const user = userEvent.setup();
       mockUseArtistDetailsData.mockReturnValue({ artist: mockArtist, loading: false, error: null });
       render(<ArtistDetailView artistId={1} />);
       // Play All / Shuffle should not throw
-      fireEvent.click(screen.getByTestId('play-all-btn'));
-      fireEvent.click(screen.getByTestId('shuffle-btn'));
+      await user.click(screen.getByTestId('play-all-btn'));
+      await user.click(screen.getByTestId('shuffle-btn'));
     });
   });
 });
